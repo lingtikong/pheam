@@ -15,11 +15,11 @@ EAMFS::EAMFS()
   char line[MAXLINE];
   // ask for the potential file
   do printf("\nPlease input the Setfl format EAM/FS potential file name: ");
-  while (strlen(gets(line)) < 1);
+  while (strlen(fgets(line,MAXLINE, stdin)) < 1);
 
   int n = strlen(line)+1;
   fname = new char[n];
-  strcpy(fname, line);
+  strcpy(fname, strtok(line, " \t\n\r\f"));
 
   FILE *fp = fopen(fname,"r");
   if (fp == NULL) {

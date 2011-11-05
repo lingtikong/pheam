@@ -15,7 +15,7 @@ FUNCFL::FUNCFL()
   char line[MAXLINE], potfiles[MAXLINE];
   // ask for the potential file
   do printf("\nPlease input the Funcfl format EAM potential file name(s): ");
-  while (count_words(gets(potfiles)) < 1);
+  while (count_words(fgets(potfiles,MAXLINE,stdin)) < 1);
 
   int nfile = count_words(potfiles);
   char **words = new char*[nfile+1];
