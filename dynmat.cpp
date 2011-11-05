@@ -99,7 +99,7 @@ void DYNMAT::checkmap()
       while (ip<0){
         printf("Please input the EAM name for %s [%s]: ", atom->elements[i], eam->elements[0]);
         char ename[10];
-        if (strlen(fgets(ename,10,stdin)) < 1) strcpy(ename, eam->elements[0]);
+        if (eam->count_words(fgets(ename,10,stdin)) < 1) strcpy(ename, eam->elements[0]);
         ip = eam->index(ename);
       }
     }
@@ -302,7 +302,7 @@ void DYNMAT::selectEAM(void)
 {
   // Main menu to select EAM parameterization
   int pottype = 1;
-  char str[MAXLINE];
+  char str[MAXLINE], *ptr;
 
   printf("\n"); for (int i=0; i<60; i++) printf("="); printf("\n");
   printf("Please select the parameterization of the EAM potential:\n");
@@ -310,7 +310,9 @@ void DYNMAT::selectEAM(void)
   printf(" 2. Funcfl format;\n");
   printf(" 3. EAM/Finnis-Sinclair;\n");
   printf("Your choice [1]: ");
-  if (strlen(fgets(str,MAXLINE,stdin)) > 0) pottype = atoi(strtok(str, " \t\n\r\f"));
+  fgets(str,MAXLINE,stdin);
+  ptr = strtok(str, " \t\n\r\f");
+  if (ptr) pottype = atoi(ptr);
   
   if (pottype == 1) eam = new SETFL;
   else if (pottype == 2) eam = new FUNCFL;
@@ -365,11 +367,11 @@ void DYNMAT::GreenLDOS()
     if (iatom < 1 || iatom > natom) break;
 
     printf("Please input the maximum iteration during Lanczos [%d]: ", nt);
-    if (strlen(fgets(str,MAXLINE,stdin)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
+    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
     if (nt < 4) continue;
 
     printf("Please input the number of points for LDOS [%d]: ", ndos);
-    if (strlen(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
+    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
     if (ndos < 10) continue;
     ndos += (ndos+1)%2;
 
@@ -381,7 +383,7 @@ void DYNMAT::GreenLDOS()
     if (wmax < wmin || wmax < 0.) continue;
 
     printf("Please input the value of epsilon in real space Green function [%lg]: ", eps);
-    if (strlen(fgets(str,MAXLINE,stdin)) > 0) eps = atof(strtok(str," \t\n\r\f"));
+    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) eps = atof(strtok(str," \t\n\r\f"));
     if (eps <= 0.) continue;
 
     time->start();

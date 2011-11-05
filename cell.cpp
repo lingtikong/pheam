@@ -18,13 +18,17 @@ CELL::CELL()
   elements = memory->create(elements,10,10,"CELL_CELL:elements");
 
   // ask for file name
-  char str[MAXLINE];
-  do printf("\nPlease input the xyz file name: ");
-  while ( strlen(fgets(str, MAXLINE, stdin)) < 1);
+  char str[MAXLINE], *ptr;
+  while (1){
+    printf("\nPlease input the xyz file name: ");
+    fgets(str, MAXLINE, stdin);
+    ptr = strtok(str, " \t\n\r\f");
+    if (ptr) break;
+  }
 
-  int n = strlen(str) + 1;
+  int n = strlen(ptr) + 1;
   char *fname = new char[n];
-  strcpy(fname, strtok(str, " \t\n\r\f"));
+  strcpy(fname, ptr);
 
   // open atomic position file
   FILE *fp = fopen(fname, "r");
