@@ -12,14 +12,18 @@ using namespace std;
  *----------------------------------------------------------------------------*/
 SETFL::SETFL()
 {
-  char line[MAXLINE];
+  char line[MAXLINE], *ptr;
   // ask for the potential file
-  do printf("\nPlease input the Setfl format EAM potential file name: ");
-  while (strlen(fgets(line,MAXLINE,stdin)) < 1);
+  while (1){
+    printf("\nPlease input the Setfl format EAM potential file name: ");
+    fgets(line,MAXLINE,stdin);
+    char *ptr = strtok(line, " \t\n\r\f");
+    if (ptr) break;
+  }
 
-  int n = strlen(line)+1;
+  int n = strlen(ptr)+1;
   fname = new char[n];
-  strcpy(fname, strtok(line, " \t\n\r\f"));
+  strcpy(fname, ptr);
 
   FILE *fp = fopen(fname,"r");
   if (fp == NULL) {
