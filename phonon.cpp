@@ -32,19 +32,20 @@ PHONON::PHONON()
     printf("  3. Phonon dispersion calculations;\n");
     printf("  4. Thermal properties calculations;\n");
     printf("  5. Phonon LDOS by eigenvectors;\n");
-    printf("  6. Phonon LDOS by Green's function;\n");
+    printf("  6. Local thermal properties by eigenvectors;\n");
+    printf("  7. Phonon LDOS by Green's function;\n");
     printf("  0. Exit;\n");
     printf("Your choice [%d]: ", job);
     if (strlen(gets(str)) > 0) sscanf(str,"%d", &job);
     for (int i=0; i<60; i++) printf("=");printf("\n");
   
-    if (job < 1 || job >6) break;
+    if (job < 1 || job >7) break;
     if (kpoints) delete kpoints;
     if (eig) dynmat->memory->destroy(eig);
     kpoints = NULL; eig = NULL;
 
     // Now to dispatch the job
-    if (job <= 5){
+    if (job <= 6){
       kpoints = new KPOINTS(job, dynmat->atom);
       
       ndim = dynmat->ndim;
@@ -68,10 +69,13 @@ PHONON::PHONON()
           therm();
           break;
         case 5:
-          pldos();
+          pldos(0);
+          break;
+        case 6:
+          pldos(1);
           break;
         }
-    } else if (job == 6){
+    } else if (job == 7){
       dynmat->GreenLDOS();
     }
   }
@@ -100,37 +104,97 @@ PHONON::~PHONON()
 /*------------------------------------------------------------------------------
  * Private method, to calculate the local phonon DOS based on the eigenvectors
  *----------------------------------------------------------------------------*/
-void PHONON::pldos()
+void PHONON::pldos(int flag)
 {
   char str[MAXLINE], *ptr;
+  //printf("\nThe # of atoms in cell is: %d, please input the atom IDs to compute\n", dynmat->natom);
+  //printf("local PDOS, ID begins with 1. ");
   printf("\nThe # of atoms in cell is: %d, please input the atom IDs to compute\n", dynmat->natom);
-  printf("local PDOS, ID begins with 1: ");
-  int nmax = dynmat->eam->count_words(gets(str));
-  if (nmax < 1) return;
-  locals = dynmat->memory->create(locals, nmax, "pldos:locals");
-
+  printf("local PDOS, IDs begin with 1. The input IDs follows an operator, which is\n");
+  printf("one of =, >, <, >=, <=, <>, ><. For \"=\", one or more IDs can be appended;\n");
+  printf("while for \">\", \">=\", \"<\" and \"<=\", only one is needed. For both \"<>\" and\n");
+  printf("\"><\" two numbers are needed. Now please input you choice: ");
+  if ( dynmat->eam->count_words(gets(str)) < 2 ) return;
   nlocal = 0;
-  ptr = strtok(str," \t\n\r\f");
-  while (ptr != NULL){
-    int id = atoi(ptr)-1;
-    if (id >= 0 && id < dynmat->natom) locals[nlocal++] = id;
-  
-    ptr = strtok(NULL," \t\n\r\f");
+  ptr = strtok(str, " \t\n\r\f");
+  if ( strcmp(ptr, "=") == 0 ){
+     int nmax = dynmat->eam->count_words(str)-1;
+     locals = dynmat->memory->create(locals, nmax, "pldos:locals");
+
+     ptr = strtok(NULL, " \t\n\r\f");
+     while (ptr != NULL){
+       int id = atoi(ptr)-1;
+       if (id >= 0 && id < dynmat->natom) locals[nlocal++] = id;
+
+       ptr = strtok(NULL, " \t\n\r\f");
+     }
+
+  } else if (strcmp(ptr, ">") == 0){
+     int nlow = atoi(strtok(NULL, " \t\n\r\f"));
+     nlocal = dynmat->natom - nlow;
+     if (nlocal < 1 || nlow < 0) return;
+
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<nlocal; i++) locals[i] = nlow + i;
+
+  } else if (strcmp(ptr, ">=") == 0){ 
+     int nlow = atoi(strtok(NULL, " \t\n\r\f"))-1;
+     nlocal = dynmat->natom - nlow;
+     if (nlocal < 1 || nlow < 0) return;
+
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<nlocal; i++) locals[i] = nlow + i;
+
+  } else if (strcmp(ptr, "<") == 0){
+     nlocal = atoi(strtok(NULL, " \t\n\r\f")) - 1;
+     if (nlocal > dynmat->natom || nlocal < 1) return;
+
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<nlocal; i++) locals[i] = i;
+
+  } else if (strcmp(ptr, "<=") == 0){
+     nlocal = atoi(strtok(NULL, " \t\n\r\f"));
+     if (nlocal > dynmat->natom || nlocal < 1) return;
+
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<nlocal; i++) locals[i] = i;
+
+  } else if (strcmp(ptr, "<>") == 0){
+     int nlo = atoi(strtok(NULL, " \t\n\r\f")) -1;
+     int nhi = atoi(strtok(NULL, " \t\n\r\f")) -1;
+     if (nlo<0 || nhi >= dynmat->natom || nhi < nlo) return;
+
+     nlocal = nhi - nlo + 1;
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
+
+  } else if (strcmp(ptr, "><") == 0){
+     int nlo = atoi(strtok(NULL, " \t\n\r\f")) -1;
+     int nhi = atoi(strtok(NULL, " \t\n\r\f")) -1;
+     if (nlo<0 || nhi >= dynmat->natom || nhi < nlo) return;
+
+     nlocal = nlo+1 + dynmat->natom - nhi;
+     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     for (int i=0; i<=nlo; i++) locals[i] = i;
+     for (int i=nlo+1; i<nlocal; i++) locals[i] = nhi + i-(nlo+1);
+
+  } else {
+     return;
   }
-  if (nlocal < 1) return;
+
   printf("Local PDOS for atom(s):");
   for (int i=0; i<nlocal; i++) printf(" %d", locals[i]+1);
   printf(" will be computed.\n");
 
   const double tpi = 8.*atan(1.);
-  wmin = 0.; wmax = 10.;
+  wmin = 0.; wmax = 20.;
   printf("Please input the freqency (nv, THz) range to compute PDOS [%g %g]: ", wmin, wmax);
   if (dynmat->eam->count_words(gets(str)) >= 2) sscanf(str,"%lg %lg", &wmin, &wmax);
   if (wmax < 0. || wmax < wmin) return;
 
   wmin *= tpi; wmax *= tpi;
 
-  ndos = 101;
+  ndos = 201;
   printf("Please input your desired # of points in PDOS [%d]: ", ndos);
   if (strlen(gets(str)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
   if (ndos < 1) return;
@@ -186,6 +250,8 @@ void PHONON::pldos()
 
   normalize();
   time->stop(); time->print(); delete time;
+
+  if (flag) compute_local_therm();
 
   writedos();
   writeldos();
@@ -479,6 +545,98 @@ void PHONON::normalize()
       sum = 3.*rdw/sum;
       for (int i=0; i<ndos; i++) ldos[i][j][k] *= sum;
     }
+  }
+return;
+}
+
+/*------------------------------------------------------------------------------
+ * Private method to compute the themal properties
+ *----------------------------------------------------------------------------*/
+void PHONON::compute_local_therm()
+{
+  char str[MAXLINE], *prefix;
+  printf("\nPlease input the prefix for output local thermal files [lpth]: ");
+  int n = strlen(gets(str));
+  if (n > 0) {
+    prefix = new char [n+1];
+    strcpy(prefix, strtok(str, " \t\n\r\f"));
+  } else {
+    prefix = new char[5];
+    strcpy(prefix, "lpth");
+  }
+  double Temp = 300.;
+  printf("Please input the temperature to evaluate local thermal info [300]: ");
+  n = strlen(gets(str));
+  if ( n > 0 ) Temp = atof(strtok(str, " \t\n\r\f"));
+
+  Timer *time = new Timer();
+
+  while ( Temp > 0. ){
+    time->start();
+
+    sprintf(str,"%s_%d.dat", prefix, int(Temp));
+    FILE *fp = fopen(str, "w");
+    fprintf(fp, "# Local thermal properties at %g K\n", Temp);
+    fprintf(fp, "# 1    2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17\n");
+    fprintf(fp, "# atom Ux Uy Uz Ut Sx Sy Sz St Fx Fy Fz Ft Cx Cy Cz Ct\n");
+    fprintf(fp, "#      eV          kB          eV          kB\n");
+
+    double h_o_KbT   = 6.6260755e1 / ( 1.380658e0 * Temp );
+    double KbT_in_eV = 1.380658e-4 * Temp / 1.60217733e0;
+
+    double Uvib[3], Svib[3], Fvib[3], Cvib[3];
+
+    for (int ilocal = 0; ilocal<nlocal; ilocal++){
+      int id = locals[ilocal];
+
+      Uvib[0] = Uvib[1] = Uvib[2] = 0.;
+      Svib[0] = Svib[1] = Svib[2] = 0.;
+      Fvib[0] = Fvib[1] = Fvib[2] = 0.;
+      Cvib[0] = Cvib[1] = Cvib[2] = 0.;
+
+      double f = wmin-dw;
+      for (int i=0; i<ndos; i++){
+        f += dw;
+        if (f <= 0.) continue;
+
+        double x = h_o_KbT * f;
+        double expx   = exp(x);
+        double expxm1 = 1./(expx - 1.);
+
+        double fac;
+        if (i == 0) fac = 1.;
+        else fac = double( (i%2+1)*2 );
+
+        for (int idim=0; idim<3; idim++){
+          Uvib[idim] += fac * ldos[i][ilocal][idim] * (0.5 + expxm1) * x;
+          Svib[idim] += fac * ldos[i][ilocal][idim] * ( x * expxm1 - log(1.-1./expx));
+          Fvib[idim] += fac * ldos[i][ilocal][idim] * log( 2.*sinh(0.5*x));
+          Cvib[idim] += fac * ldos[i][ilocal][idim] * x * x * expx * expxm1 * expxm1;
+        }
+      }
+
+      double dw3rd = dw / 3.;
+      for (int idim=0; idim<3; idim++){
+        Uvib[idim] *= dw3rd * KbT_in_eV;
+        Svib[idim] *= dw3rd;
+        Fvib[idim] *= dw3rd * KbT_in_eV;
+        Cvib[idim] *= dw3rd;
+      }
+
+      fprintf(fp,"%d", id);
+      for (int idim=0; idim<3; idim++) fprintf(fp," %lg", Uvib[idim]); fprintf(fp," %lg", Uvib[0]+Uvib[1]+Uvib[2]);
+      for (int idim=0; idim<3; idim++) fprintf(fp," %lg", Svib[idim]); fprintf(fp," %lg", Svib[0]+Svib[1]+Svib[2]);
+      for (int idim=0; idim<3; idim++) fprintf(fp," %lg", Fvib[idim]); fprintf(fp," %lg", Fvib[0]+Fvib[1]+Fvib[2]);
+      for (int idim=0; idim<3; idim++) fprintf(fp," %lg", Cvib[idim]); fprintf(fp," %lg", Cvib[0]+Cvib[1]+Cvib[2]);
+      fprintf(fp,"\n");
+    }
+
+    fclose(fp);
+    time->stop();
+    printf("Done! Total time used: %g second.\n", time->elapse());
+
+    printf("Please input the temperature to evaluate local thermal info [%g]: ", Temp);
+    if ( strlen(gets(str)) > 0 )  Temp = atof(strtok(str, " \t\n\r\f"));
   }
 return;
 }
