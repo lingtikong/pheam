@@ -36,7 +36,7 @@ KPOINTS::KPOINTS(int type, CELL *cellin)
     int nx[3];
     char str[MAXLINE], *ptr;
     printf("\nPlease input the q-point mesh size [1 1 1]: ");
-    if (cell->count_words(gets(str)) >= 3){
+    if (cell->count_words(fgets(str,MAXLINE,stdin)) >= 3){
       ptr = strtok(str," \t\n\r\f");
       for (int i=0; i<3; i++){
         nx[i] = atoi(ptr);
@@ -83,7 +83,7 @@ void KPOINTS::get_line_q()
   while (nline < 1){
     nline = 1;
     printf("\nPlease input the total number of lines [1]: ");
-    if (strlen(gets(str)) > 0) sscanf(str,"%d",&nline);
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) nline = atoi(strtok(str, " \t\n\r\f"));
   }
   qstr = memory->create(qstr,nline, 3, "KPOINTS_interpolate:qstr");
   qend = memory->create(qend,nline, 3, "KPOINTS_interpolate:qend");
@@ -93,13 +93,20 @@ void KPOINTS::get_line_q()
   for (int i=0; i<3; i++) qstr[0][i] = 0.;
   for (int i=0; i<nline; i++){
     printf("\nPlease input the start point of line %d [%g %g %g]: ", i+1, qstr[i][0], qstr[i][1],qstr[i][2]);
-    if (cell->count_words(gets(str)) >= 3) sscanf(str,"%lg %lg %lg", &qstr[i][0], &qstr[i][1],&qstr[i][2]);
+    if (cell->count_words(fgets(str,MAXLINE,stdin)) >= 3){
+      qstr[i][0] = atof(strtok(str, " \t\n\r\f"));
+      qstr[i][1] = atof(strtok(NULL," \t\n\r\f"));
+      qstr[i][2] = atof(strtok(NULL," \t\n\r\f"));
+    }
 
     do printf("Please input the final point of line %d: ", i+1);
-    while(cell->count_words(gets(str)) < 3);
-    sscanf(str,"%lg %lg %lg", &qend[i][0], &qend[i][1],&qend[i][2]);
+    while(cell->count_words(fgets(str,MAXLINE,stdin)) < 3);
+    qend[i][0] = atof(strtok(str, " \t\n\r\f"));
+    qend[i][1] = atof(strtok(NULL," \t\n\r\f"));
+    qend[i][2] = atof(strtok(NULL," \t\n\r\f"));
+
     printf("Please input the number of points in this line [%d]: ", npp);
-    if (strlen(gets(str)) > 0) sscanf(str,"%d",&npp);
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) npp = atoi(strtok(str, " \t\n\r\f"));
     npp = MAX(2,npp);
     npt[i] = npp;
     if (i < nline-1) for (int j=0; j<3; j++) qstr[i+1][j] = qend[i][j];
@@ -149,11 +156,11 @@ void KPOINTS::writeq()
   // ask for file name
   char str[MAXLINE];
   do printf("\nPlease input the file name to output q points:");
-  while (strlen(gets(str)) < 1);
+  while (strlen(fgets(str,MAXLINE,stdin)) < 1);
 
   int n = strlen(str) + 1;
   char *fname = new char[n];
-  strcpy(fname, str);
+  strcpy(fname, strtok(str, " \t\n\r\f"));
 
   FILE *fp = fopen(fname, "w");
   fprintf(fp,"# index qx qy qz weight\n");

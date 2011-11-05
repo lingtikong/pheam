@@ -20,11 +20,11 @@ CELL::CELL()
   // ask for file name
   char str[MAXLINE];
   do printf("\nPlease input the xyz file name: ");
-  while ( strlen(gets(str)) < 1);
+  while ( strlen(fgets(str, MAXLINE, stdin)) < 1);
 
   int n = strlen(str) + 1;
   char *fname = new char[n];
-  strcpy(fname, str);
+  strcpy(fname, strtok(str, " \t\n\r\f"));
 
   // open atomic position file
   FILE *fp = fopen(fname, "r");
@@ -87,7 +87,7 @@ CELL::CELL()
     printf("\nLattice info read from %s is insufficient, please input them properly.\n", fname);
     for (int i=0; i<3; i++){
       do printf("Please input the vector A%d: ", i+1);
-      while (count_words(gets(str)) < 3);
+      while (count_words(fgets(str,MAXLINE,stdin)) < 3);
       axis[i][0] = atof(strtok(str," \t\n\r\f"));
       axis[i][1] = atof(strtok(NULL," \t\n\r\f"));
       axis[i][2] = atof(strtok(NULL," \t\n\r\f"));
@@ -95,8 +95,11 @@ CELL::CELL()
   }
   // ask for boundary condition
   printf("Please indicate if PBC is applied in each direction (1:yes; 0:no)[1 1 1]: ");
-  if (count_words(gets(str)) >= 3) sscanf(str, "%d %d %d", &pbc[0], &pbc[1], &pbc[2]);
-  else pbc[0] = pbc[1] = pbc[2] = 1;
+  if (count_words(fgets(str,MAXLINE,stdin)) >= 3){
+    pbc[0] = atoi(strtok(str, " \t\n\r\f"));
+    pbc[1] = atoi(strtok(NULL," \t\n\r\f"));
+    pbc[2] = atoi(strtok(NULL," \t\n\r\f"));
+  } else pbc[0] = pbc[1] = pbc[2] = 1;
 
   for (int i=0; i<3; i++) if (pbc[i] != 0) pbc[i] = 1;
 

@@ -45,7 +45,11 @@ DYNMAT::DYNMAT()
   Lz = int(eam->rcut/atom->axis[2][2]+1.0); if (atom->pbc[2] == 0) Lz=0;
   char str[MAXLINE];
   printf("\nPlease input the # of extension of cell in three dimensions[%d %d %d]: ", Lx,Ly,Lz);
-  if (eam->count_words(gets(str)) >= 3) sscanf(str,"%d %d %d", &Lx, &Ly, &Lz);
+  if (eam->count_words(fgets(str,MAXLINE,stdin)) >= 3){
+    Lx = atof(strtok(str, " \t\n\r\f"));
+    Ly = atof(strtok(NULL," \t\n\r\f"));
+    Lz = atof(strtok(NULL," \t\n\r\f"));
+  }
   if (atom->pbc[0] == 0) Lx=0;
   if (atom->pbc[1] == 0) Ly=0;
   if (atom->pbc[2] == 0) Lz=0;
@@ -95,7 +99,7 @@ void DYNMAT::checkmap()
       while (ip<0){
         printf("Please input the EAM name for %s [%s]: ", atom->elements[i], eam->elements[0]);
         char ename[10];
-        if (strlen(gets(ename)) < 1) strcpy(ename, eam->elements[0]);
+        if (strlen(fgets(ename,10,stdin)) < 1) strcpy(ename, eam->elements[0]);
         ip = eam->index(ename);
       }
     }
@@ -306,7 +310,7 @@ void DYNMAT::selectEAM(void)
   printf(" 2. Funcfl format;\n");
   printf(" 3. EAM/Finnis-Sinclair;\n");
   printf("Your choice [1]: ");
-  if (strlen(gets(str)) > 0) sscanf(str,"%d", &pottype);
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0) pottype = atoi(strtok(str, " \t\n\r\f"));
   
   if (pottype == 1) eam = new SETFL;
   else if (pottype == 2) eam = new FUNCFL;
@@ -357,24 +361,27 @@ void DYNMAT::GreenLDOS()
   while ( 1 ) {
     printf("\nThe total number of atoms in your system is %d.\n", natom);
     printf("Please input the atom index to get local PDOS [%d]: ", iatom);
-    if (atom->count_words(gets(str)) > 0) iatom = atoi(strtok(str," \t\n\r\f"));
+    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) iatom = atoi(strtok(str," \t\n\r\f"));
     if (iatom < 1 || iatom > natom) break;
 
     printf("Please input the maximum iteration during Lanczos [%d]: ", nt);
-    if (strlen(gets(str)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
     if (nt < 4) continue;
 
     printf("Please input the number of points for LDOS [%d]: ", ndos);
-    if (strlen(gets(str)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
     if (ndos < 10) continue;
     ndos += (ndos+1)%2;
 
     printf("Please input the frequency range to evaluate LDOS [%lg %lg]: ", wmin, wmax);
-    if (atom->count_words(gets(str)) > 1){wmin = atof(strtok(str," \t\n\r\f")); wmax = atof(strtok(NULL," \t\n\r\f"));}
+    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 1){
+      wmin = atof(strtok(str," \t\n\r\f"));
+      wmax = atof(strtok(NULL," \t\n\r\f"));
+    }
     if (wmax < wmin || wmax < 0.) continue;
 
     printf("Please input the value of epsilon in real space Green function [%lg]: ", eps);
-    if (strlen(gets(str)) > 0) eps = atof(strtok(str," \t\n\r\f"));
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) eps = atof(strtok(str," \t\n\r\f"));
     if (eps <= 0.) continue;
 
     time->start();

@@ -36,7 +36,7 @@ PHONON::PHONON()
     printf("  7. Phonon LDOS by Green's function;\n");
     printf("  0. Exit;\n");
     printf("Your choice [%d]: ", job);
-    if (strlen(gets(str)) > 0) sscanf(str,"%d", &job);
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) job = atoi(strtok(str, " \t\n\r\f"));
     for (int i=0; i<60; i++) printf("=");printf("\n");
   
     if (job < 1 || job >7) break;
@@ -114,7 +114,7 @@ void PHONON::pldos(int flag)
   printf("one of =, >, <, >=, <=, <>, ><. For \"=\", one or more IDs can be appended;\n");
   printf("while for \">\", \">=\", \"<\" and \"<=\", only one is needed. For both \"<>\" and\n");
   printf("\"><\" two numbers are needed. Now please input you choice: ");
-  if ( dynmat->eam->count_words(gets(str)) < 2 ) return;
+  if ( dynmat->eam->count_words(fgets(str,MAXLINE,stdin)) < 2 ) return;
   nlocal = 0;
   ptr = strtok(str, " \t\n\r\f");
   if ( strcmp(ptr, "=") == 0 ){
@@ -189,14 +189,17 @@ void PHONON::pldos(int flag)
   const double tpi = 8.*atan(1.);
   wmin = 0.; wmax = 20.;
   printf("Please input the freqency (nv, THz) range to compute PDOS [%g %g]: ", wmin, wmax);
-  if (dynmat->eam->count_words(gets(str)) >= 2) sscanf(str,"%lg %lg", &wmin, &wmax);
+  if (dynmat->eam->count_words(fgets(str,MAXLINE,stdin)) >= 2){
+    wmin = atof(strtok(str, " \t\n\r\f"));
+    wmax = atof(strtok(NULL," \t\n\r\f"));
+  }
   if (wmax < 0. || wmax < wmin) return;
 
   wmin *= tpi; wmax *= tpi;
 
   ndos = 201;
   printf("Please input your desired # of points in PDOS [%d]: ", ndos);
-  if (strlen(gets(str)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
   if (ndos < 1) return;
   ndos += (ndos+1)%2;
 
@@ -307,13 +310,16 @@ void PHONON::pdos()
     for (int i=0; i<ndim; i++){eig[iq][i] *= rtpi; wmin=MIN(wmin, eig[iq][i]); wmax=MAX(wmax,eig[iq][i]);}
   }
   printf("\nPlease input the range to evaluate PDOS [%lg %lg]: ", wmin, wmax);
-  if (dynmat->eam->count_words(gets(str)) >= 2) sscanf(str, "%lg %lg", &wmin, &wmax);
+  if (dynmat->eam->count_words(fgets(str,MAXLINE,stdin)) >= 2){
+    wmin = atof(strtok(str, " \t\n\r\f"));
+    wmax = atof(strtok(NULL," \t\n\r\f"));
+  }
   printf("You chose to get the DOS within [%lg %lg].\n", wmin, wmax);
 
   // initialize DOS variables
   ndos = 201;
   printf("Please input the number of points in the DOS [%d]: ", ndos);
-  if (strlen(gets(str)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
   if (ndos < 2) return;
   ndos += (ndos+1)%2;
 
@@ -355,10 +361,10 @@ void PHONON::writedos()
 {
   char str[MAXLINE], *fname;
   printf("\nPlease input the file name to output the phonon DOS [pdos.dat]: ");
-  if (strlen(gets(str)) > 1){
+  if (strlen(fgets(str,MAXLINE,stdin)) > 1){
     int n = strlen(str)+1;
     fname = new char[n];
-    strcpy(fname, str);
+    strcpy(fname, strtok(str, " \t\n\r\f"));
   } else {
     fname = new char[9];
     strcpy(fname,"pdos.dat");
@@ -418,10 +424,10 @@ void PHONON::pdisp()
   // ask for the file name
   char str[MAXLINE], *fname;
   printf("\nPlease input the file name to output the phonon dispersion [pdisp.dat]: ");
-  if (strlen(gets(str)) > 0){
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0){
     int n = strlen(str) + 1;
     fname = new char[n];
-    strcpy(fname, str);
+    strcpy(fname, strtok(str, " \t\n\r\f"));
   } else {
     fname = new char[10];
     strcpy(fname,"pdisp.dat");
@@ -450,10 +456,10 @@ void PHONON::therm()
   // ask for file name to output result
   char str[MAXLINE], *fname;
   printf("\nPlease input the file name to output thermal properties [pthermo.dat]: ");
-  if (strlen(gets(str)) > 0){
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0){
     int n = strlen(str)+1;
     fname = new char[n];
-    strcpy(fname, str);
+    strcpy(fname, strtok(str, " \t\n\r\f"));
   } else {
     fname = new char[12];
     strcpy(fname,"pthermo.dat");
@@ -469,7 +475,7 @@ void PHONON::therm()
   // first temperature
   double T = 0.;
   printf("Please input the desired temperature (K), non-positive to exit [0]: ");
-  if (strlen(gets(str)) > 0) T = atof(strtok(str," \t\n\r\f"));
+  if (strlen(fgets(str,MAXLINE,stdin)) > 0) T = atof(strtok(str," \t\n\r\f"));
 
   Timer *time = new Timer();
 
@@ -508,7 +514,7 @@ void PHONON::therm()
     printf("Done! Total time used: %g second.\n", time->elapse());
     // ask for next temperature
     printf("Please input the desired temperature (K), non-positive to exit [0]: ");
-    if (strlen(gets(str)) > 0) T = atof(strtok(str," \t\n\r\f"));
+    if (strlen(fgets(str,MAXLINE,stdin)) > 0) T = atof(strtok(str," \t\n\r\f"));
     else T = 0.;
   }
   fclose(fp);
@@ -556,7 +562,7 @@ void PHONON::compute_local_therm()
 {
   char str[MAXLINE], *prefix;
   printf("\nPlease input the prefix for output local thermal files [lpth]: ");
-  int n = strlen(gets(str));
+  int n = strlen(fgets(str,MAXLINE,stdin));
   if (n > 0) {
     prefix = new char [n+1];
     strcpy(prefix, strtok(str, " \t\n\r\f"));
@@ -566,7 +572,7 @@ void PHONON::compute_local_therm()
   }
   double Temp = 300.;
   printf("Please input the temperature to evaluate local thermal info [300]: ");
-  n = strlen(gets(str));
+  n = strlen(fgets(str,MAXLINE,stdin));
   if ( n > 0 ) Temp = atof(strtok(str, " \t\n\r\f"));
 
   Timer *time = new Timer();
@@ -636,7 +642,7 @@ void PHONON::compute_local_therm()
     printf("Done! Total time used: %g second.\n", time->elapse());
 
     printf("Please input the temperature to evaluate local thermal info [%g]: ", Temp);
-    if ( strlen(gets(str)) > 0 )  Temp = atof(strtok(str, " \t\n\r\f"));
+    if ( strlen(fgets(str,MAXLINE,stdin)) > 0 )  Temp = atof(strtok(str, " \t\n\r\f"));
   }
 return;
 }
