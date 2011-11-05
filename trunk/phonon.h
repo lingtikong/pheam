@@ -17,11 +17,12 @@ private:
 
   void pdos();
   void pdisp();
-  void pldos();
+  void pldos(int flag);
   void therm();
 
   void writedos();
   void writeldos();
+  void compute_local_therm();
 
   void normalize();
 
