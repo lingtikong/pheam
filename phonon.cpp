@@ -407,7 +407,7 @@ void PHONON::writeldos()
     strcpy(fname, str);
     FILE *fp = fopen(fname, "w");
 
-    fprintf(fp,"#Local phonon DOS for atom %d\n", id);
+    fprintf(fp,"#Local phonon DOS for atom %d by eigenvalues\n", id);
     fprintf(fp,"#freq x  y  z  total\n");
     
     double wnow = wmin;
@@ -526,7 +526,7 @@ void PHONON::therm()
     fprintf(fp,"%lg %lg %lg %lg %lg %lg\n", T, Uvib, Svib, Fvib, ZPE, Cvib);
 
     time->stop();
-    printf("Done! Total time used: %g second.\n", time->elapse());
+    printf("Done! Total cpu time used: %g second; wall time: %g seconds.\n", time->cpu_time(), time->wall_time());
 
     // ask for next temperature
     T = 0.;
@@ -659,7 +659,7 @@ void PHONON::compute_local_therm()
 
     fclose(fp);
     time->stop();
-    printf("Done! Total time used: %g second.\n", time->elapse());
+    printf("Done! Total time used: %g second; wall time: %g seconds.\n", time->cpu_time(), time->wall_time());
 
     printf("Please input the temperature to evaluate local thermal info [%g]: ", Temp);
     fgets(str,MAXLINE,stdin);

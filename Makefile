@@ -1,17 +1,26 @@
 .SUFFIXES : .o .cpp
 # compiler and flags
 CC     = g++ -Wno-unused-result
+#CC     = icc
 LINK   = $(CC) -static
 CFLAGS = -O3 $(DEBUG)
 
 #
 OFLAGS = -O3 $(DEBUG)
-INC    = $(FFTINC) $(LPKINC) $(USRINC) $(SPGINC) $(GSLINC)
-LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB)
+INC    = $(FFTINC) $(LPKINC) $(USRINC) $(SPGINC) $(GSLINC) $(OPMINC)
+LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB)
 
 # fftw 3 library
 #FFTINC    = -I/opt/fftw/fftw3/include
 #FFTLIB    = -L/opt/fftw/fftw3/lib -lfftw3
+
+# parallelize part of the code via OpenMP
+# on Lithium
+OPMINC = -fopenmp -DOMP
+OPMLIB = -lgomp -lpthread
+# on Manager
+#OPMINC = -openmp -DOMP
+#OPMLIB = -openmp -lstdc++ -lpthread -lguide
 
 # Lapack library
 LPKINC = -I/opt/clapack/3.2.1/include
