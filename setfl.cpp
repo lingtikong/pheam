@@ -17,7 +17,7 @@ SETFL::SETFL()
   while (1){
     printf("\nPlease input the Setfl format EAM potential file name: ");
     fgets(line,MAXLINE,stdin);
-    char *ptr = strtok(line, " \t\n\r\f");
+    ptr = strtok(line, " \t\n\r\f");
     if (ptr) break;
   }
 
