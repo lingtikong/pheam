@@ -108,7 +108,7 @@ PHONON::~PHONON()
  *----------------------------------------------------------------------------*/
 void PHONON::pldos(int flag)
 {
-  char str[MAXLINE], *ptr;
+  char str[MAXLINE], id4ldos[MAXLINE], *ptr;
   //printf("\nThe # of atoms in cell is: %d, please input the atom IDs to compute\n", dynmat->natom);
   //printf("local PDOS, ID begins with 1. ");
   printf("\nThe # of atoms in cell is: %d, please input the atom IDs to compute\n", dynmat->natom);
@@ -116,19 +116,31 @@ void PHONON::pldos(int flag)
   printf("one of =, >, <, >=, <=, <>, ><. For \"=\", one or more IDs can be appended;\n");
   printf("while for \">\", \">=\", \"<\" and \"<=\", only one is needed. For both \"<>\" and\n");
   printf("\"><\" two numbers are needed. Now please input you choice: ");
-  if ( dynmat->eam->count_words(fgets(str,MAXLINE,stdin)) < 2 ) return;
+  int nword = dynmat->eam->count_words(fgets(str,MAXLINE,stdin));
+  if ( nword < 2 ) return;
   nlocal = 0;
   ptr = strtok(str, " \t\n\r\f");
   if ( strcmp(ptr, "=") == 0 ){
-     int nmax = dynmat->eam->count_words(str)-1;
-     locals = dynmat->memory->create(locals, nmax, "pldos:locals");
-
-     ptr = strtok(NULL, " \t\n\r\f");
-     while (ptr != NULL){
-       int id = atoi(ptr)-1;
-       if (id >= 0 && id < dynmat->natom) locals[nlocal++] = id;
+     int nmax = nword-1;
+     if (nmax > 0){
+       locals = dynmat->memory->create(locals, nmax, "pldos:locals");
+       strcpy(id4ldos, ptr);
 
        ptr = strtok(NULL, " \t\n\r\f");
+       while (ptr != NULL){
+         int id = atoi(ptr)-1;
+         if (id >= 0 && id < dynmat->natom){
+           int flag = 1;
+           for (int i=0; i<nlocal; i++){
+             if (id == locals[i]){ flag = 0; break; }
+           }
+           if (flag){
+             locals[nlocal++] = id;
+             strcat(id4ldos, " "); strcat(id4ldos, ptr);
+           }
+         }
+         ptr = strtok(NULL, " \t\n\r\f");
+       }
      }
 
   } else if (strcmp(ptr, ">") == 0){
@@ -138,14 +150,16 @@ void PHONON::pldos(int flag)
 
      locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = nlow + i;
+     sprintf(id4ldos, "> %d", nlow);
 
   } else if (strcmp(ptr, ">=") == 0){ 
-     int nlow = atoi(strtok(NULL, " \t\n\r\f"))-1;
-     nlocal = dynmat->natom - nlow;
-     if (nlocal < 1 || nlow < 0) return;
+     int nlow = atoi(strtok(NULL, " \t\n\r\f"));
+     nlocal = dynmat->natom - nlow +1;
+     if (nlocal < 1 || nlow < 1) return;
 
      locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
-     for (int i=0; i<nlocal; i++) locals[i] = nlow + i;
+     for (int i=0; i<nlocal; i++) locals[i] = nlow + i -1;
+     sprintf(id4ldos, ">= %d", nlow);
 
   } else if (strcmp(ptr, "<") == 0){
      nlocal = atoi(strtok(NULL, " \t\n\r\f")) - 1;
@@ -154,12 +168,16 @@ void PHONON::pldos(int flag)
      locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = i;
 
+     sprintf(id4ldos, "< %d", nlocal+1);
+
   } else if (strcmp(ptr, "<=") == 0){
      nlocal = atoi(strtok(NULL, " \t\n\r\f"));
      if (nlocal > dynmat->natom || nlocal < 1) return;
 
      locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = i;
+
+     sprintf(id4ldos, "<= %d", nlocal);
 
   } else if (strcmp(ptr, "<>") == 0){
      int nlo = atoi(strtok(NULL, " \t\n\r\f")) -1;
@@ -169,6 +187,8 @@ void PHONON::pldos(int flag)
      nlocal = nhi - nlo + 1;
      locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
+
+     sprintf(id4ldos, "[%d %d]", nlo+1, nhi+1);
 
   } else if (strcmp(ptr, "><") == 0){
      int nlo = atoi(strtok(NULL, " \t\n\r\f")) -1;
@@ -180,13 +200,14 @@ void PHONON::pldos(int flag)
      for (int i=0; i<=nlo; i++) locals[i] = i;
      for (int i=nlo+1; i<nlocal; i++) locals[i] = nhi + i-(nlo+1);
 
+     sprintf(id4ldos, "[1, %d] & [%d, %d]", nlo+1, nhi+1, dynmat->natom);
+
   } else {
      return;
   }
 
-  printf("Local PDOS for atom(s):");
-  for (int i=0; i<nlocal; i++) printf(" %d", locals[i]+1);
-  printf(" will be computed.\n");
+  if (nlocal < 1) return;
+  printf("Local PDOS for %d atoms with id %s will be computed!\n", nlocal, id4ldos);
 
   const double tpi = 8.*atan(1.);
   wmin = 0.; wmax = 20.;
