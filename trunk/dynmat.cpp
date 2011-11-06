@@ -393,7 +393,7 @@ void DYNMAT::GreenLDOS()
           }
           if (flag){
             locals[nlocal++] = id;
-            strcat(id4ldos, ptr); 
+            strcat(id4ldos, " "); strcat(id4ldos, ptr); 
           }
         }
   
@@ -490,8 +490,7 @@ void DYNMAT::GreenLDOS()
           }
           if (flag){
             locals[nlocal++] = id;
-
-            strcat(id4ldos, ptr);
+            strcat(id4ldos, " "); strcat(id4ldos, ptr);
           }
         }
 
