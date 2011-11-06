@@ -6,7 +6,12 @@
 #include <complex>
 
 #define MAXLINE 256
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
+#ifdef OMP
+#include "omp.h"
+#endif
 /*******************************************************************************
  * The class of Green is designed to evaluate the LDOS via the Green's Function
  * method. The meaning of input/output parameters are as follows:
@@ -51,12 +56,12 @@ Green::Green(int ntm, int sdim, int niter, double min, double max, int ndos, dou
   ndim = natom * sysdim;
   if (natom < NMAX) nit = ndim;
 
-  if (nit < 1){printf("\nError: Wrong input of maximum iterations!\n"); return;}
+  if (nit < 1)   {printf("\nError: Wrong input of maximum iterations!\n"); return;}
   if (nit > ndim){printf("\nError: # Lanczos iterations is not expected to exceed the degree of freedom!\n"); return;}
-  if (nw  < 1){printf("\nError: Wrong input of points in LDOS!\n"); return;}
+  if (nw  < 1)   {printf("\nError: Wrong input of points in LDOS!\n"); return;}
 
   // initialize variables and allocate local memories
-  dw = (wmax - wmin)/double(nw-1);
+  dw    = (wmax - wmin)/double(nw-1);
   alpha = memory->create(alpha,sysdim,nit,  "Green_Green:alpha");
   beta  = memory->create(beta,sysdim,nit+1,"Green_Green:beta");
   ldos  = memory->create(ldos,nw,sysdim, "Green_Green:ldos");
@@ -66,6 +71,9 @@ Green::Green(int ntm, int sdim, int niter, double min, double max, int ndos, dou
   // Get the inverser of the treated hessian by continued fractional method
   if (natom < NMAX) recursion();
   else Recursion();
+
+  // normalize the LDOS computed
+  Normalize();
 
   // write the result
   writeLDOS();
@@ -93,16 +101,19 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::Lanczos()
 {
-  double *vp, *v, *w, *ptr;
 
-  vp = new double [ndim];
-  v  = new double [ndim];
-  w  = new double [ndim];
-  
   int ipos = (iatom-1)*sysdim;
 
   // Loop over dimension
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#endif
   for (int idim=0; idim<sysdim; idim++){
+
+    double v0[ndim], v1[ndim], w0[ndim];
+    double *vp = &v0[0], *v  = &v1[0], *w  = &w0[0];
+
     beta[idim][0] = 0.;
     for (int i=0; i<ndim; i++){vp[i] = v[i] = 0.;}
     v[ipos+idim] = 1.;
@@ -128,16 +139,11 @@ void Green::Lanczos()
       for (int k=0; k<ndim; k++) sum_b += w[k]*w[k];
       beta[idim][i+1] = sqrt(sum_b);
 
-      ptr = vp; vp = v; v = ptr;
+      double *ptr = vp; vp = v; v = ptr; ptr = NULL;
       double tmp = 1./beta[idim][i+1];    
       for (int k=0; k<ndim; k++) v[k] = w[k]*tmp;
     }
   }
-
-  ptr = NULL;
-  delete []vp;
-  delete []v;
-  delete []w;
 
 return;
 }
@@ -156,6 +162,10 @@ void Green::Recursion()
   xmax  = new double [sysdim];
 
   int nave = nit/4;
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#endif
   for (int idim=0; idim<sysdim; idim++){
     alpha_inf[idim] = beta_inf[idim] = 0.;
 
@@ -171,19 +181,22 @@ void Green::Recursion()
     xmax[idim] = alpha_inf[idim] + 2.*beta_inf[idim];
   }
 
-  std::complex<double> Z, z_m_a, r_x, rec_x, rec_x_inv;
-  double sr, si;
-
   double w = wmin;
   for (int i=0; i<nw; i++){
-    double a = w*w, ax, bx;
-    Z = std::complex<double>(w*w, epson);
+    double a = w*w;
+    std::complex<double> Z = std::complex<double>(w*w, epson);
 
+#ifdef OMP
+    int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#endif
     for (int idim=0; idim<sysdim; idim++){
       double two_b = 2.*beta_inf[idim]*beta_inf[idim];
       double rtwob = 1./two_b;
 
-      z_m_a = Z - alpha_inf[idim]*alpha_inf[idim];
+      std::complex<double> z_m_a = Z - alpha_inf[idim]*alpha_inf[idim];
+      std::complex<double> r_x, rec_x, rec_x_inv;
+      double ax, bx;
 
       if ( a < xmin[idim] ){
         r_x = sqrt(-2.*two_b + z_m_a);
@@ -199,8 +212,8 @@ void Green::Recursion()
         bx = -std::real(r_x) * rtwob;
       }
 
-      sr = (a - alpha_inf[idim])*rtwob + ax;
-      si = epson * rtwob + bx;
+      double sr = (a - alpha_inf[idim])*rtwob + ax;
+      double si = epson * rtwob + bx;
       rec_x = std::complex<double> (sr, si);
 
       for (int j=0; j<nit; j++){
@@ -216,9 +229,6 @@ void Green::Recursion()
   delete []xmin;
   delete []xmax;
 
-  // normalize the computed LDOS
-  Normalize();
-
 return;
 }
 
@@ -228,29 +238,26 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::recursion()
 {
-  // local variables
-  std::complex<double> Z, rec_x, rec_x_inv;
-  std::complex<double> cunit = std::complex<double>(0.,1.);
 
   double w = wmin;
-
   for (int i=0; i<nw; i++){
-    Z = std::complex<double>(w*w, epson);
+    std::complex<double> Z = std::complex<double>(w*w, epson);
 
+#ifdef OMP
+    int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#endif
     for (int idim=0; idim<sysdim; idim++){
-      rec_x = std::complex<double>(0.,0.);
+      std::complex<double> rec_x = std::complex<double>(0.,0.);
 
       for (int j=0; j<nit; j++){
-        rec_x_inv = Z - alpha[idim][nit-j-1] - beta[idim][nit-j]*beta[idim][nit-j]*rec_x;
+        std::complex<double> rec_x_inv = Z - alpha[idim][nit-j-1] - beta[idim][nit-j]*beta[idim][nit-j]*rec_x;
         rec_x = 1./rec_x_inv;
       }
       ldos[i][idim] = std::imag(rec_x)*w;
     }
     w += dw;
   }
-
-  // normalize the LDOS computed
-  Normalize();
 
 return;
 }
@@ -261,13 +268,18 @@ return;
 void Green::Normalize()
 {
   // normalize ldos
+  double df = dw /(8.*atan(1.));
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#endif
   for (int idim=0; idim<sysdim; idim++){
     double odd = 0., even = 0.;
     for (int i=1; i<nw-1; i += 2) odd  += ldos[i][idim];
     for (int i=2; i<nw-1; i += 2) even += ldos[i][idim];
     double sum = ldos[0][idim] + ldos[nw-1][idim];
     sum += 4.*odd + 2.*even;
-    sum = 24./(sum*dw)*atan(1.);
+    sum = 3./(sum*df);
     for (int i=0; i<nw; i++) ldos[i][idim] *= sum;
   }
 
@@ -279,24 +291,27 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::writeLDOS()
 {
-  const double rtpi = 1./(8.*atan(1.));
   char str[MAXLINE], *fname;
-  sprintf(str,"ldos_%d.dat",iatom);
-  int n = strlen(str)+1;
-  fname = new char[n];
-  strcpy(fname, str);
+  sprintf(str,"pldos_%d.dat",iatom);
+  fname = strtok(str, " \r\n\t\f");
 
-  FILE *fp = fopen(fname, "w");
-  fprintf(fp,"# omega nu  ldos_x ldos_y ldos_z ldos\n");
-  double w = wmin;
+  FILE *fp = fopen(fname, "w"); fname = NULL;
+  fprintf(fp,"#Local phonon DOS for atom %d by RSGF method\n", iatom);
+  fprintf(fp,"#freq"); for (int i=0; i<sysdim; i++) fprintf(fp," %c", 'x'+i);
+  fprintf(fp," total\n");
+
+  const double rtpi = 1./(8.*atan(1.));
+  double freq = wmin * rtpi;
+  double df = dw * rtpi;
   for (int i=0; i<nw; i++){
     double tldos = 0.;
-    fprintf(fp,"%lg %lg", w , w*rtpi);
+    fprintf(fp,"%lg", freq);
     for (int idim=0; idim<sysdim; idim++){fprintf(fp," %lg", ldos[i][idim]); tldos+= ldos[i][idim];}
     fprintf(fp," %lg\n", tldos);
-    w += dw;
+
+    freq += df;
   }
   fclose(fp);
-  delete []fname;
+
 return;
 }

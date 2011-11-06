@@ -4,6 +4,9 @@
 #include "timer.h"
 
 #include "dynmat.h"
+#ifdef OMP
+#include "omp.h"
+#endif
 
 using namespace std;
 
@@ -44,7 +47,7 @@ DYNMAT::DYNMAT()
   Ly = int(eam->rcut/atom->axis[1][1]+1.0); if (atom->pbc[1] == 0) Ly=0;
   Lz = int(eam->rcut/atom->axis[2][2]+1.0); if (atom->pbc[2] == 0) Lz=0;
   char str[MAXLINE];
-  printf("\nPlease input the # of extension of cell in three dimensions[%d %d %d]: ", Lx,Ly,Lz);
+  printf("\nPlease input the # of extension of cell in three dimensions [%d %d %d]: ", Lx,Ly,Lz);
   if (eam->count_words(fgets(str,MAXLINE,stdin)) >= 3){
     Lx = atof(strtok(str, " \t\n\r\f"));
     Ly = atof(strtok(NULL," \t\n\r\f"));
@@ -91,15 +94,19 @@ DYNMAT::~DYNMAT()
  *----------------------------------------------------------------------------*/
 void DYNMAT::checkmap()
 {
+  char str[MAXLINE];
   for (int i=0; i<atom->ntype; i++){
     int ip = eam->index(atom->elements[i]);
     if (ip < 0){
       printf("\nError: Cannot find element %s in EAM; available elements in EAM are:", atom->elements[i]);
       for (int j=0; j<eam->ntype; j++) printf(" %s", eam->elements[j]); printf("\n");
       while (ip<0){
-        printf("Please input the EAM name for %s [%s]: ", atom->elements[i], eam->elements[0]);
         char ename[10];
-        if (eam->count_words(fgets(ename,10,stdin)) < 1) strcpy(ename, eam->elements[0]);
+        printf("Please input the EAM name for %s [%s]: ", atom->elements[i], eam->elements[0]);
+        if (eam->count_words(fgets(str,MAXLINE,stdin)) < 1)
+          strcpy(ename, eam->elements[0]);
+        else strcpy(ename, strtok(str, " \n\t\r\f"));
+
         ip = eam->index(ename);
       }
     }
@@ -197,6 +204,10 @@ void DYNMAT::computeDM(double *q)
   }
 
   // now to compute the dynamical matrix
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
+#endif
   for (int k=0; k<natom; k++){
     double Dkk[3][3];
     for (int i=0; i<3; i++){Dkk[i][0] = Dkk[i][1] = Dkk[i][2] = 0.;}
@@ -338,14 +349,14 @@ void DYNMAT::selectEAM(void)
  *----------------------------------------------------------------------------*/
 void DYNMAT::GreenLDOS()
 {
-  double **hessian, q0[3], wmin, wmax, eps;
-  int sysdim = 3, nt = ndim*0.1, iatom = 1, ndos = 201;
+  double q0[3], wmin, wmax, eps;
+  int sysdim = 3, nt = ndim/10, ndos = 201;
   char str[MAXLINE];
   const double eva2thz =1.60217733*6.022142e3; // assuming original units are eV and Angstrom
  
   printf("\nNow to evaluate the Hessian at Gamma-point ...");
-  hessian = memory->create(hessian,ndim,ndim,"DYNMAT_GreenLDOS:hessian");
-  // to get the frequency range at gamma point, as well as the dynamical matrix
+  double **hessian = (double **) dm;
+  // to get the dynamical matrix at gamma point
   q0[0] = q0[1] = q0[2] = 0.;
   computeDM(&q0[0]);
 
@@ -358,41 +369,189 @@ void DYNMAT::GreenLDOS()
   wmax = 10.;
   eps  = 12.;
 
-  Timer *time = new Timer();
+  int nlocal = 0, *locals;
+  printf("\nThe total number of atoms in your system is %d.\n", natom);
+  printf("Please input the atom index to get local PDOS [1]: ");
+  int nwd = atom->count_words(fgets(str,MAXLINE,stdin));
+  if (nwd < 1){nwd = 1; strcpy(str,"1");}
 
-  while ( 1 ) {
-    printf("\nThe total number of atoms in your system is %d.\n", natom);
-    printf("Please input the atom index to get local PDOS [%d]: ", iatom);
-    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) iatom = atoi(strtok(str," \t\n\r\f"));
-    if (iatom < 1 || iatom > natom) break;
+  char *ptr = strtok(str, " \t\n\r\f");
+  char id4ldos[MAXLINE];
 
-    printf("Please input the maximum iteration during Lanczos [%d]: ", nt);
-    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
-    if (nt < 4) continue;
+  if (strcmp(ptr, "=") == 0){
+    strcpy(id4ldos, "=");
+    if (nwd > 1){
+      locals = memory->create(locals, nwd-1, "GreenLDOS:locals");
 
-    printf("Please input the number of points for LDOS [%d]: ", ndos);
-    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
-    if (ndos < 10) continue;
-    ndos += (ndos+1)%2;
-
-    printf("Please input the frequency range to evaluate LDOS [%lg %lg]: ", wmin, wmax);
-    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 1){
-      wmin = atof(strtok(str," \t\n\r\f"));
-      wmax = atof(strtok(NULL," \t\n\r\f"));
+      ptr = strtok(NULL," \t\n\r\f");
+      while (ptr){
+        int id = atoi(ptr);
+        if (id > 0 && id <= natom){
+          int flag = 1;
+          for (int i=0; i<nlocal; i++){
+            if (id == locals[i]){ flag = 0; break; }
+          }
+          if (flag){
+            locals[nlocal++] = id;
+            strcat(id4ldos, ptr); 
+          }
+        }
+  
+        ptr = strtok(NULL," \t\n\r\f");
+      }
     }
-    if (wmax < wmin || wmax < 0.) continue;
+  } else if (strcmp(ptr, ">") == 0){
+    if (nwd > 1){
+      int nlo = atoi(strtok(NULL," \t\n\r\f"));
+      nlocal = natom-nlo;
 
-    printf("Please input the value of epsilon in real space Green function [%lg]: ", eps);
-    if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) eps = atof(strtok(str," \t\n\r\f"));
-    if (eps <= 0.) continue;
+      if (nlocal > 0 && nlocal <= natom){
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        for (int i=0; i<nlocal; i++) locals[i] = i+nlo+1;
 
-    time->start();
+        sprintf(id4ldos,"> %d", nlo);
+      } else nlocal = 0;
+    }
+  } else if (strcmp(ptr, ">=") == 0){
+    if (nwd > 1){
+      int nlo = atoi(strtok(NULL," \t\n\r\f"));
+      nlocal = natom-nlo+1;
+      if (nlocal > 0 && nlocal <= natom){
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
+
+        sprintf(id4ldos,">= %d", nlo);
+      } else nlocal = 0;
+    }
+  } else if (strcmp(ptr, "<") == 0){
+    if (nwd > 1){
+      int nhi = atoi(strtok(NULL," \t\n\r\f"));
+      nlocal = nhi-1;
+      if (nlocal > 0 && nlocal <= natom){
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        for (int i=0; i<nlocal; i++) locals[i] = i;
+
+        sprintf(id4ldos,"< %d", nhi);
+      } else nlocal = 0;
+    }
+  } else if (strcmp(ptr, "<=") == 0){
+    if (nwd > 1){
+      int nhi = atoi(strtok(NULL," \t\n\r\f"));
+      nlocal = nhi;
+      if (nlocal > 0 && nlocal <= natom){
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        for (int i=0; i<nlocal; i++) locals[i] = i;
+
+        sprintf(id4ldos,"<= %d", nhi);
+      } else nlocal = 0;
+    }
+  } else if (strcmp(ptr, "<>") == 0){
+    if (nwd > 2){
+      int nlo = atoi(strtok(NULL," \t\n\r\f"));
+      int nhi = atoi(strtok(NULL," \t\n\r\f"));
+
+      if (nlo > 0 && nhi <= natom && nhi >= nlo){
+        nlocal = nhi - nlo + 1;
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+
+        for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
+
+        sprintf(id4ldos,"[%d, %d]", nlo, nhi);
+      }
+    }
+  } else if (strcmp(ptr, "><") == 0){
+    if (nwd > 2){
+      int nlo = atoi(strtok(NULL," \t\n\r\f"));
+      int nhi = atoi(strtok(NULL," \t\n\r\f"));
+
+      if (nlo > 0 && nhi <= natom && nhi >= nlo){
+        nlocal = nlo + natom - nhi + 1;
+        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+
+        for (int i=0;     i<= nlo;  i++) locals[i] = i;
+        for (int i=nlo+1; i<nlocal; i++) locals[i] = i-nlo-1+nhi;
+
+        sprintf(id4ldos,"[1, %d] & [%d, %d]", nlo, nhi, natom);
+      }
+    }
+  } else {
+    nlocal = nwd;
+    if (nlocal > 0){
+      locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+      nlocal = 0;
+
+      strcpy(id4ldos, "=");
+      while (ptr){
+        int id = atoi(ptr);
+        if (id > 0 && id <= natom){
+          int flag = 1;
+          for (int i=0; i<nlocal; i++){
+            if (id == locals[i]){ flag = 0; break; }
+          }
+          if (flag){
+            locals[nlocal++] = id;
+
+            strcat(id4ldos, ptr);
+          }
+        }
+
+        ptr = strtok(NULL," \t\n\r\f");
+      }
+    }
+  }
+  if (nlocal < 1){
+    hessian = NULL;
+    return;
+  }
+  printf("Local phonon DOS for %d atoms with id: %s will be computed!", nlocal, id4ldos);
+
+  printf("\nPlease input the maximum iteration during Lanczos [%d]: ", nt);
+  if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) nt = atoi(strtok(str," \t\n\r\f"));
+  if (nt < 4){
+    printf("\nError: too few Lanczos steps!\n");
+    hessian = NULL;
+    return;
+  }
+
+  printf("Please input the number of points for LDOS [%d]: ", ndos);
+  if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) ndos = atoi(strtok(str," \t\n\r\f"));
+  if (ndos < 10){
+    printf("\nError: too few DOS points!\n");
+    hessian = NULL;
+    return;
+  }
+  ndos += (ndos+1)%2;
+
+  printf("Please input the frequency range to evaluate LDOS [%lg %lg]: ", wmin, wmax);
+  if (atom->count_words(fgets(str,MAXLINE,stdin)) > 1){
+    wmin = atof(strtok(str," \t\n\r\f"));
+    wmax = atof(strtok(NULL," \t\n\r\f"));
+  }
+  if (wmax < wmin || wmax < 0.){
+    printf("\nError: incorrect frequency range!\n");
+    hessian = NULL;
+    return;
+  }
+
+  printf("Please input the value of epsilon in real space Green function [%lg]: ", eps);
+  if (atom->count_words(fgets(str,MAXLINE,stdin)) > 0) eps = atof(strtok(str," \t\n\r\f"));
+  if (eps <= 0.){
+    printf("\nError: wrong epsilon, expected a positive number!\n");
+    hessian = NULL;
+    return;
+  }
+
+  Timer *time = new Timer();
+  time->start();
+  for (int ilocal = 0; ilocal<nlocal; ilocal++){
+    int iatom = locals[ilocal];
     // now to compute the LDOS by using class Green
     green = new Green(natom, sysdim, nt, wmin, wmax, ndos, eps, hessian, iatom);
     delete green;
-    time->stop(); time->print();
   }
+  time->stop(); time->print();
 
-  memory->destroy(hessian);
+  hessian = NULL;
+  //memory->destroy(hessian);
 return;
 }
