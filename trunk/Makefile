@@ -27,8 +27,8 @@ OPMLIB = -lgomp -lpthread
 
 # Lapack library
 # cLapack
-LPKINC = -I/opt/clapack/3.2.1/include
-LPKLIB = -L/opt/clapack/3.2.1/lib -lclapack -lblas -lf2c -lm
+#LPKINC = -I/opt/clapack/3.2.1/include
+#LPKLIB = -L/opt/clapack/3.2.1/lib -lclapack -lblas -lf2c -lm
 # MKL Lapack
 LPKINC = -I/opt/intel/cmkl/10.2.5.035/include -DMKL
 LPKLIB = -L/opt/intel/cmkl/10.2.5.035/lib/em64t -lmkl_lapack95_lp64 -lmkl_intel_lp64 -Wl,--start-group -lmkl_intel_thread  -lmkl_core -Wl,--end-group -liomp5 -lpthread
