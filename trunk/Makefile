@@ -18,10 +18,10 @@ LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB) $(SYSLIB)
 #FFTLIB    = -L/opt/fftw/fftw3/lib -lfftw3
 
 # parallelize part of the code via OpenMP
-# on Lithium
+# g++
 OPMINC = -fopenmp -DOMP
 OPMLIB = -lgomp -lpthread
-# on Manager
+# icc
 #OPMINC = -openmp -parallel -fast -DOMP
 #OPMLIB = -openmp -parallel -fast
 

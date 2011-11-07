@@ -66,6 +66,10 @@ Green::Green(int ntm, int sdim, int niter, double min, double max, int ndos, dou
   beta  = memory->create(beta,sysdim,nit+1,"Green_Green:beta");
   ldos  = memory->create(ldos,nw,sysdim, "Green_Green:ldos");
 
+#ifdef OMP
+  int npmax = MIN(sysdim, omp_get_max_threads());
+  omp_set_num_threads(npmax);
+#endif
   // use Lanczos algorithm to diagonalize the Hessian
   Lanczos();
   // Get the inverser of the treated hessian by continued fractional method
@@ -101,14 +105,10 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::Lanczos()
 {
-
   int ipos = (iatom-1)*sysdim;
 
   // Loop over dimension
-#ifdef OMP
-  int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
-#endif
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int idim=0; idim<sysdim; idim++){
 
     double v0[ndim], v1[ndim], w0[ndim];
@@ -162,10 +162,7 @@ void Green::Recursion()
   xmax  = new double [sysdim];
 
   int nave = nit/4;
-#ifdef OMP
-  int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
-#endif
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int idim=0; idim<sysdim; idim++){
     alpha_inf[idim] = beta_inf[idim] = 0.;
 
@@ -186,10 +183,7 @@ void Green::Recursion()
     double a = w*w;
     std::complex<double> Z = std::complex<double>(w*w, epson);
 
-#ifdef OMP
-    int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) private(i,w,a,Z) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
-#endif
+    #pragma omp parallel for default(shared) private(i,w,a,Z) schedule(guided)
     for (int idim=0; idim<sysdim; idim++){
       double two_b = 2.*beta_inf[idim]*beta_inf[idim];
       double rtwob = 1./two_b;
@@ -243,10 +237,7 @@ void Green::recursion()
   for (int i=0; i<nw; i++){
     std::complex<double> Z = std::complex<double>(w*w, epson);
 
-#ifdef OMP
-    int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) private(i,w,Z) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
-#endif
+    #pragma omp parallel for default(shared) private(i,w,Z) schedule(guided)
     for (int idim=0; idim<sysdim; idim++){
       std::complex<double> rec_x = std::complex<double>(0.,0.);
 
@@ -269,10 +260,8 @@ void Green::Normalize()
 {
   // normalize ldos
   double df = dw /(8.*atan(1.));
-#ifdef OMP
-  int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
-#endif
+
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int idim=0; idim<sysdim; idim++){
     double odd = 0., even = 0.;
     for (int i=1; i<nw-1; i += 2) odd  += ldos[i][idim];
