@@ -98,7 +98,7 @@ void DYNMAT::checkmap()
   for (int i=0; i<atom->ntype; i++){
     int ip = eam->index(atom->elements[i]);
     if (ip < 0){
-      printf("\nError: Cannot find element %s in EAM; available elements in EAM are:", atom->elements[i]);
+      printf("\nWarning: Cannot find element %s in EAM; available elements in EAM are:", atom->elements[i]);
       for (int j=0; j<eam->ntype; j++) printf(" %s", eam->elements[j]); printf("\n");
       while (ip<0){
         char ename[10];
@@ -122,7 +122,12 @@ void DYNMAT::setup()
 {
   Ec = Ep = 0.;
   // get the electronic density and neighbors
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
+#endif
   for (int i=0; i< natom; i++) den[i] = 0.;
+#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
   for (int i=0; i< natom; i++) NumNei[i] = 0;
 
   for (int k=0; k < natom; k++){
@@ -145,14 +150,19 @@ void DYNMAT::setup()
         //den[k] += rhokpk;
         //if (k == 512 || kp == 512) printf("k=%d kp=%d, r=%g rho=%g\n", k, kp, r, rhokpk);
         den[k] += eam->Rho(r, ikp, ik);
-        if (k != kp){den[kp] += eam->Rho(r, ik, ikp); Ep += eam->Phi(r, ik, ikp);}
-        else Ep += 0.5*eam->Phi(r, ikp, ik);
+        if (k != kp){
+          den[kp] += eam->Rho(r, ik, ikp);
+          Ep += eam->Phi(r, ik, ikp);
+        } else {
+          Ep += 0.5*eam->Phi(r, ikp, ik);
+        }
 
         if (++NumNei[k] > neimax){
           neimax += 12;
           NeiList = memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
           Bonds   = memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
         }
+
         int nnow = NumNei[k] -1;
         NeiList[nnow][k] = kp;
         for (int idim=0; idim<3; idim++) Bonds[nnow][k][idim] = Rklkp[idim];
@@ -173,9 +183,11 @@ void DYNMAT::setup()
     }
   }
   // get the embedded energy and its derivatives
+#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
   for (int i=0; i<natom; i++){
     int ip  = map[atom->type[i]];
     //printf("i=%d, ip=%d, rho=%g\n", i, ip, den[i]);
+    #pragma omp atomic
     Ec += eam->F(den[i], ip);
 
     Fp[i]  = eam->Fp(den[i], ip);
@@ -186,7 +198,7 @@ void DYNMAT::setup()
   printf("\n");for (int i=0; i<60;i++) printf("="); printf("\n");
   printf("System name : %s\n", atom->title);
   printf("System size : %d atoms with %d types\n",natom, atom->ntype);
-  printf("Elements are:");for (int i=0; i<atom->ntype;i++) printf(" %s",atom->elements[i]);
+  printf("Elements are:");for (int i=0; i<atom->ntype;i++) printf(" %s -> %s",atom->elements[i], eam->elements[map[i]]);
   printf("\nCohesive eng: %lg eV\n", Ec);
   printf("Pairwise eng: %lg eV\n", Ep);
   printf("Total energy: %lg eV ==> %lg eV/atom\n", Et, Et/double(natom));
@@ -200,7 +212,7 @@ void DYNMAT::computeDM(double *q)
 {
   const double tpi = 8.*atan(1.);
   for (int i=0; i<ndim; i++){
-    for (int j=0; j<ndim; j++){dm[i][j].r = 0.; dm[i][j].i=0.;}
+    for (int j=0; j<ndim; j++){dm[i][j].REALPART = 0.; dm[i][j].IMAGPART=0.;}
   }
 
   // now to compute the dynamical matrix
@@ -236,10 +248,10 @@ void DYNMAT::computeDM(double *q)
 
       double qr = tpi*(q[0]*Rkkp[0]+q[1]*Rkkp[1]+q[2]*Rkkp[2]);
       double rmass = 1./sqrt(eam->mass[ik]*eam->mass[ikp]);
-      doublecomplex iqr;
+      COMPLEX iqr;
 
-      iqr.r = cos(qr)*rmass;
-      iqr.i = sin(qr)*rmass;
+      iqr.REALPART = cos(qr)*rmass;
+      iqr.IMAGPART = sin(qr)*rmass;
 
       double Term_ab = -(Fpp[k]*fpk *fpk + Fp[k]*fppk + Fpp[kp]*fpkp*fpkp + Fp[kp]*fppkp) * r2_inv
                        +(Fp[k]*fpk + Fp[kp]*fpkp) * r3_inv - phipp * r2_inv + phip * r3_inv;
@@ -252,15 +264,15 @@ void DYNMAT::computeDM(double *q)
         if (a == b) Dkakpb += Term_aa;
 
         int i = a + 3*k, j = b + 3*kp;
-        dm[i][j].r += Dkakpb * iqr.r;
-        dm[i][j].i += Dkakpb * iqr.i;
+        dm[i][j].REALPART += Dkakpb * iqr.REALPART;
+        dm[i][j].IMAGPART += Dkakpb * iqr.IMAGPART;
 
         Dkk[a][b] -= Dkakpb * rmass;
       }
     }
     int ii = 3*k;
     for (int i=0; i<3; i++){
-      for (int j=0; j<3; j++) dm[ii+i][ii+j].r += Dkk[i][j];
+      for (int j=0; j<3; j++) dm[ii+i][ii+j].REALPART += Dkk[i][j];
     }
   }
 return;
@@ -273,9 +285,9 @@ int DYNMAT::computeEigen(int flag)
 {
   char jobz, uplo;
   const double eva2thz = sqrt(1.60217733*6.022142e3); // works if the original units are eV and Angstrom
-  integer n, lda, lwork, lrwork, *iwork, liwork, info;
-  doublecomplex *work;
-  doublereal *w = &egval[0], *rwork;
+  INTEGER n, lda, lwork, lrwork, *iwork, liwork, info;
+  COMPLEX *work;
+  DOUBLEREAL *w = &egval[0], *rwork;
 
   if (flag) jobz = 'V';
   else jobz = 'N';
@@ -361,7 +373,7 @@ void DYNMAT::GreenLDOS()
   computeDM(&q0[0]);
 
   for (int idim=0; idim<ndim; idim++){
-    for (int jdim=0; jdim<ndim; jdim++) hessian[idim][jdim] = dm[idim][jdim].r * eva2thz;
+    for (int jdim=0; jdim<ndim; jdim++) hessian[idim][jdim] = dm[idim][jdim].REALPART * eva2thz;
   }
   printf("Done!\n");
 

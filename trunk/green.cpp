@@ -188,7 +188,7 @@ void Green::Recursion()
 
 #ifdef OMP
     int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#pragma omp parallel for default(shared) private(i,w,a,Z) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
 #endif
     for (int idim=0; idim<sysdim; idim++){
       double two_b = 2.*beta_inf[idim]*beta_inf[idim];
@@ -245,7 +245,7 @@ void Green::recursion()
 
 #ifdef OMP
     int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+#pragma omp parallel for default(shared) private(i,w,Z) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
 #endif
     for (int idim=0; idim<sysdim; idim++){
       std::complex<double> rec_x = std::complex<double>(0.,0.);

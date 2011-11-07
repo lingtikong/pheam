@@ -265,7 +265,8 @@ void PHONON::pldos(int flag)
         for (int ilocal=0; ilocal<nlocal; ilocal++){
           int ipos = locals[ilocal]*3; 
           for (int k=0; k<3; k++){
-            double dr = dynmat->dm[idim][ipos+k].r, di = dynmat->dm[idim][ipos+k].i;
+            double dr = dynmat->dm[idim][ipos+k].REALPART;
+            double di = dynmat->dm[idim][ipos+k].IMAGPART;
             double norm = dr * dr + di * di;
             ldos[hit][ilocal][k] += w[iq] * norm;
           }

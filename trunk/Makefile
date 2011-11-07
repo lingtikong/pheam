@@ -8,7 +8,10 @@ CFLAGS = -O3 $(DEBUG)
 #
 OFLAGS = -O3 $(DEBUG)
 INC    = $(FFTINC) $(LPKINC) $(USRINC) $(SPGINC) $(GSLINC) $(OPMINC)
-LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB)
+LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB) $(SYSLIB)
+
+# icc specific
+#SYSLIB = -lstdc++ -lpthread -lguide
 
 # fftw 3 library
 #FFTINC    = -I/opt/fftw/fftw3/include
@@ -19,12 +22,16 @@ LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB)
 OPMINC = -fopenmp -DOMP
 OPMLIB = -lgomp -lpthread
 # on Manager
-#OPMINC = -openmp -DOMP
-#OPMLIB = -openmp -lstdc++ -lpthread -lguide
+#OPMINC = -openmp -parallel -fast -DOMP
+#OPMLIB = -openmp -parallel -fast
 
 # Lapack library
+# cLapack
 LPKINC = -I/opt/clapack/3.2.1/include
 LPKLIB = -L/opt/clapack/3.2.1/lib -lclapack -lblas -lf2c -lm
+# MKL Lapack
+LPKINC = -I/opt/intel/cmkl/10.2.5.035/include -DMKL
+LPKLIB = -L/opt/intel/cmkl/10.2.5.035/lib/em64t -lmkl_lapack95_lp64 -lmkl_intel_lp64 -Wl,--start-group -lmkl_intel_thread  -lmkl_core -Wl,--end-group -liomp5 -lpthread
 
 # spglib, used to get the irreducible q-points
 SPGINC = -I/opt/spglib/0.7.1/include
