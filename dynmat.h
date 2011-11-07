@@ -5,6 +5,7 @@
 #include "cell.h"
 #include "memory.h"
 #include "green.h"
+#include <complex>
 
 #ifdef MKL
 #include "mkl.h"

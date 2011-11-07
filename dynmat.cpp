@@ -124,14 +124,16 @@ void DYNMAT::setup()
   // get the electronic density and neighbors
 #ifdef OMP
   int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
+  omp_set_num_threads(npmax);
 #endif
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int i=0; i< natom; i++) den[i] = 0.;
-#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int i=0; i< natom; i++) NumNei[i] = 0;
 
   for (int k=0; k < natom; k++){
     int ik = map[atom->type[k]];
+    #pragma omp parallel for default(shared) schedule(guided)
     for (int kp=k; kp < natom; kp++){
       int ikp = map[atom->type[kp]];
       for (int kx = -Lx; kx <= Lx; kx++)
@@ -146,28 +148,31 @@ void DYNMAT::setup()
         double r2 = atom->veclen2(Rklkp);
         if (r2 >= eam->rcutsq) continue;
 
-        double r = sqrt(r2); //, rhokpk = eam->Rho(r, ikp, ik);;
-        //den[k] += rhokpk;
-        //if (k == 512 || kp == 512) printf("k=%d kp=%d, r=%g rho=%g\n", k, kp, r, rhokpk);
+        double r = sqrt(r2);
+        #pragma omp atomic
         den[k] += eam->Rho(r, ikp, ik);
         if (k != kp){
           den[kp] += eam->Rho(r, ik, ikp);
+          #pragma omp atomic
           Ep += eam->Phi(r, ik, ikp);
         } else {
+          #pragma omp atomic
           Ep += 0.5*eam->Phi(r, ikp, ik);
         }
 
-        if (++NumNei[k] > neimax){
-          neimax += 12;
-          NeiList = memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
-          Bonds   = memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
-        }
-
-        int nnow = NumNei[k] -1;
-        NeiList[nnow][k] = kp;
-        for (int idim=0; idim<3; idim++) Bonds[nnow][k][idim] = Rklkp[idim];
-        Bonds[nnow][k][3] = r;
-          
+        #pragma omp critical
+        { // only one thread is allowed to modify this region at the same time
+          if (++NumNei[k] > neimax){
+            neimax += 12;
+            NeiList = memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
+            Bonds   = memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
+          }
+  
+          int nnow = NumNei[k] -1;
+          NeiList[nnow][k] = kp;
+          for (int idim=0; idim<3; idim++) Bonds[nnow][k][idim] = Rklkp[idim];
+          Bonds[nnow][k][3] = r;
+        }  
         if (k != kp){
           if ( ++NumNei[kp]> neimax){
             neimax += 12;
@@ -183,10 +188,9 @@ void DYNMAT::setup()
     }
   }
   // get the embedded energy and its derivatives
-#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
+#pragma omp parallel for default(shared) schedule(guided)
   for (int i=0; i<natom; i++){
     int ip  = map[atom->type[i]];
-    //printf("i=%d, ip=%d, rho=%g\n", i, ip, den[i]);
     #pragma omp atomic
     Ec += eam->F(den[i], ip);
 
@@ -216,10 +220,7 @@ void DYNMAT::computeDM(double *q)
   }
 
   // now to compute the dynamical matrix
-#ifdef OMP
-  int npmax = omp_get_max_threads();
-#pragma omp parallel for default(shared) schedule(dynamic,natom/npmax) num_threads(npmax)
-#endif
+  #pragma omp parallel for default(shared) schedule(guided)
   for (int k=0; k<natom; k++){
     double Dkk[3][3];
     for (int i=0; i<3; i++){Dkk[i][0] = Dkk[i][1] = Dkk[i][2] = 0.;}
@@ -285,6 +286,7 @@ int DYNMAT::computeEigen(int flag)
 {
   char jobz, uplo;
   const double eva2thz = sqrt(1.60217733*6.022142e3); // works if the original units are eV and Angstrom
+
   INTEGER n, lda, lwork, lrwork, *iwork, liwork, info;
   COMPLEX *work;
   DOUBLEREAL *w = &egval[0], *rwork;
@@ -297,9 +299,16 @@ int DYNMAT::computeEigen(int flag)
   lda    = n;
   lrwork = 1 + (5+n+n)*n;
   liwork = 3 + 5*n;
-  work  = memory->create(work, lwork,"computeEigen:work");
+  work  = memory->create(work,  lwork,"computeEigen:work");
   rwork = memory->create(rwork, lrwork,"computeEigen:rwork");
   iwork = memory->create(iwork, liwork,"computeEigen:iwork");
+
+#ifdef OMP
+#ifdef MKL
+  int npmax = omp_get_max_threads();
+  omp_set_num_threads(npmax);
+#endif
+#endif
 
   zheevd_(&jobz, &uplo, &n, dm[0], &lda, w, work, &lwork, rwork, &lrwork, iwork, &liwork, &info);
 
@@ -552,17 +561,24 @@ void DYNMAT::GreenLDOS()
     return;
   }
 
-  Timer *time = new Timer();
-  time->start();
+  Timer *timer = new Timer();
+  double cputime = 0., walltime = 0.;
   for (int ilocal = 0; ilocal<nlocal; ilocal++){
+    timer->start();
     int iatom = locals[ilocal];
+    printf("Now to compute PLDOS for atom %d... ", iatom);
     // now to compute the LDOS by using class Green
     green = new Green(natom, sysdim, nt, wmin, wmax, ndos, eps, hessian, iatom);
     delete green;
+
+    timer->stop();
+    printf("Done! CPU time used: %g seconds; wall time: %g seconds.\n", timer->cpu_time(), timer->wall_time());
+    cputime += timer->cpu_time(); walltime += timer->wall_time();
   }
-  time->stop(); time->print();
+  if (nlocal > 1) printf("Total CPU time used: %g seconds; wall time: %g seconds.\n", cputime, walltime);
+  delete timer;
 
   hessian = NULL;
-  //memory->destroy(hessian);
+
 return;
 }
