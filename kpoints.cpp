@@ -200,9 +200,10 @@ void KPOINTS::get_ir_q(const int npt, const int *nx, const int natom, CELL *cell
                                mesh, shift, is_time_reversal,
                                lattice, position, types,
                                num_atom, symprec);
+
   q = memory->create(q,nq,3,"q");
   w = memory->create(w,nq,"w");
-  int *iq2idx = new int[num_grid];
+  int *iq2idx = memory->create(iq2idx, num_grid, "get_ir_q:iq2idx");
   int numq = 0;
   for (int i=0; i<num_grid; i++){
     int iq = map[i];
@@ -221,7 +222,7 @@ void KPOINTS::get_ir_q(const int npt, const int *nx, const int natom, CELL *cell
     w[iq2idx[iq]] += 1.;
   }
 
-  delete []iq2idx;
+  memory->destroy(iq2idx);
   double wsum = 0.;
   for (int iq=0; iq<nq; iq++) wsum += w[iq];
   for (int iq=0; iq<nq; iq++) w[iq] /= wsum;

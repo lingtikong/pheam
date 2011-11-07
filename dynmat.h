@@ -6,10 +6,26 @@
 #include "memory.h"
 #include "green.h"
 
+#ifdef MKL
+#include "mkl.h"
+#define COMPLEX MKL_Complex16
+#define DOUBLEREAL double
+#define REALPART real
+#define IMAGPART imag
+#define INTEGER  MKL_INT
+
+#else
+
 extern "C"{
 #include "f2c.h"
 #include "clapack.h"
 }
+#define COMPLEX doublecomplex
+#define DOUBLEREAL doublereal
+#define REALPART r
+#define IMAGPART i
+#define INTEGER integer
+#endif
 
 class DYNMAT {
 public:
@@ -30,7 +46,7 @@ public:
   void GreenLDOS();
 
   double *egval;
-  doublecomplex **dm;
+  COMPLEX **dm;
 
 private:
   void selectEAM(void);

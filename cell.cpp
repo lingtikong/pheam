@@ -140,8 +140,12 @@ void CELL::car2dir()
     for (int idim=0; idim<3; idim++){
       s[i][idim] = 0.;
       for (int jdim=0; jdim<3; jdim++) s[i][idim] += x[i][jdim]*invaxis[jdim][idim];
+
+      while (s[i][idim] >= 1.) s[i][idim] -= 1.;
+      while (s[i][idim] <  0.) s[i][idim] += 1.;
     }
   }
+
 return;
 }
 
