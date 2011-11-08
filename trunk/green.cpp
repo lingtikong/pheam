@@ -64,11 +64,10 @@ Green::Green(int ntm, int sdim, int niter, double min, double max, int ndos, dou
   dw    = (wmax - wmin)/double(nw-1);
   alpha = memory->create(alpha,sysdim,nit,  "Green_Green:alpha");
   beta  = memory->create(beta,sysdim,nit+1,"Green_Green:beta");
-  ldos  = memory->create(ldos,nw,sysdim, "Green_Green:ldos");
+  ldos  = memory->create(ldos,sysdim,nw, "Green_Green:ldos");
 
 #ifdef OMP
-  int npmax = MIN(sysdim, omp_get_max_threads());
-  omp_set_num_threads(npmax);
+  npmax = omp_get_max_threads();
 #endif
   // use Lanczos algorithm to diagonalize the Hessian
   Lanczos();
@@ -108,7 +107,7 @@ void Green::Lanczos()
   int ipos = (iatom-1)*sysdim;
 
   // Loop over dimension
-  #pragma omp parallel for default(shared) schedule(dynamic,1)
+  #pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
 
     double v0[ndim], v1[ndim], w0[ndim];
@@ -156,13 +155,13 @@ void Green::Recursion()
 {
   // local variables
   double *alpha_inf, *beta_inf, *xmin, *xmax;
-  alpha_inf = new double [sysdim];
-  beta_inf  = new double [sysdim];
-  xmin  = new double [sysdim];
-  xmax  = new double [sysdim];
+  alpha_inf = memory->create(alpha_inf, sysdim, "Recursion:alpha_inf");
+  beta_inf  = memory->create(beta_inf,  sysdim, "Recursion:beta_inf");
+  xmin  = memory->create(xmin, sysdim, "Recursion:xmin");
+  xmax  = memory->create(xmax, sysdim, "Recursion:xmax");
 
   int nave = nit/4;
-  #pragma omp parallel for default(shared) schedule(dynamic,1)
+  #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
     alpha_inf[idim] = beta_inf[idim] = 0.;
 
@@ -178,12 +177,12 @@ void Green::Recursion()
     xmax[idim] = alpha_inf[idim] + 2.*beta_inf[idim];
   }
 
-  double w = wmin;
+  #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
   for (int i=0; i<nw; i++){
+    double w = wmin + double(i)*dw;
     double a = w*w;
     std::complex<double> Z = std::complex<double>(w*w, epson);
 
-    #pragma omp parallel for default(shared) schedule(dynamic,1)
     for (int idim=0; idim<sysdim; idim++){
       double two_b = 2.*beta_inf[idim]*beta_inf[idim];
       double rtwob = 1./two_b;
@@ -214,14 +213,13 @@ void Green::Recursion()
         rec_x_inv = Z - alpha[idim][nit-j-1] - beta[idim][nit-j]*beta[idim][nit-j]*rec_x;
         rec_x = 1./rec_x_inv;
       }
-      ldos[i][idim] = std::imag(rec_x)*w;
+      ldos[idim][i] = std::imag(rec_x)*w;
     }
-    w += dw;
   }
-  delete []alpha_inf;
-  delete []beta_inf;
-  delete []xmin;
-  delete []xmax;
+  memory->destroy(alpha_inf);
+  memory->destroy(beta_inf);
+  memory->destroy(xmin);
+  memory->destroy(xmax);
 
 return;
 }
@@ -232,12 +230,11 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::recursion()
 {
-
-  double w = wmin;
+  #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
   for (int i=0; i<nw; i++){
+    double w = wmin + double(i)*dw;
     std::complex<double> Z = std::complex<double>(w*w, epson);
 
-    #pragma omp parallel for default(shared) schedule(dynamic,1)
     for (int idim=0; idim<sysdim; idim++){
       std::complex<double> rec_x = std::complex<double>(0.,0.);
 
@@ -245,11 +242,9 @@ void Green::recursion()
         std::complex<double> rec_x_inv = Z - alpha[idim][nit-j-1] - beta[idim][nit-j]*beta[idim][nit-j]*rec_x;
         rec_x = 1./rec_x_inv;
       }
-      ldos[i][idim] = std::imag(rec_x)*w;
+      ldos[idim][i] = std::imag(rec_x)*w;
     }
-    w += dw;
   }
-
 return;
 }
 
@@ -261,15 +256,15 @@ void Green::Normalize()
   // normalize ldos
   double df = dw /(8.*atan(1.));
 
-  #pragma omp parallel for default(shared) schedule(dynamic,1)
+  #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
     double odd = 0., even = 0.;
-    for (int i=1; i<nw-1; i += 2) odd  += ldos[i][idim];
-    for (int i=2; i<nw-1; i += 2) even += ldos[i][idim];
-    double sum = ldos[0][idim] + ldos[nw-1][idim];
+    for (int i=1; i<nw-1; i += 2) odd  += ldos[idim][i];
+    for (int i=2; i<nw-1; i += 2) even += ldos[idim][i];
+    double sum = ldos[idim][0] + ldos[idim][nw-1];
     sum += 4.*odd + 2.*even;
     sum = 3./(sum*df);
-    for (int i=0; i<nw; i++) ldos[i][idim] *= sum;
+    for (int i=0; i<nw; i++) ldos[idim][i] *= sum;
   }
 
 return;
@@ -295,7 +290,7 @@ void Green::writeLDOS()
   for (int i=0; i<nw; i++){
     double tldos = 0.;
     fprintf(fp,"%lg", freq);
-    for (int idim=0; idim<sysdim; idim++){fprintf(fp," %lg", ldos[i][idim]); tldos+= ldos[i][idim];}
+    for (int idim=0; idim<sysdim; idim++){fprintf(fp," %lg", ldos[idim][i]); tldos+= ldos[idim][i];}
     fprintf(fp," %lg\n", tldos);
 
     freq += df;

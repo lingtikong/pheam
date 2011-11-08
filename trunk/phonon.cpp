@@ -232,13 +232,14 @@ void PHONON::pldos(int flag)
   dw = (wmax-wmin)/double(ndos-1);
   rdw = 1./dw;
 
-  ldos = dynmat->memory->create(ldos,ndos,nlocal,3,"phonon_pldos:ldos");
+  ldos = dynmat->memory->create(ldos,nlocal,3,ndos,"phonon_pldos:ldos");
   dos  = dynmat->memory->create(dos,ndos,"phonon_pldos:dos");
 
-  for (int i=0; i<ndos; i++){
-    dos[i] = 0.;
-    for (int j=0; j<nlocal; j++)
-    for (int k=0; k<3; k++) ldos[i][j][k] = 0.;
+  for (int i=0; i<ndos; i++) dos[i] = 0.;
+
+  for (int i=0; i<nlocal; i++)
+  for (int idim=0; idim<3; idim++){
+    for (int k=0; k<ndos; k++) ldos[i][idim][k] = 0.;
   }
 
   int nprint;
@@ -264,11 +265,11 @@ void PHONON::pldos(int flag)
 
         for (int ilocal=0; ilocal<nlocal; ilocal++){
           int ipos = locals[ilocal]*3; 
-          for (int k=0; k<3; k++){
-            double dr = dynmat->dm[idim][ipos+k].REALPART;
-            double di = dynmat->dm[idim][ipos+k].IMAGPART;
+          for (int idim=0; idim<3; idim++){
+            double dr = dynmat->dm[idim][ipos+idim].REALPART;
+            double di = dynmat->dm[idim][ipos+idim].IMAGPART;
             double norm = dr * dr + di * di;
-            ldos[hit][ilocal][k] += w[iq] * norm;
+            ldos[ilocal][idim][hit] += w[iq] * norm;
           }
         }
       }
@@ -434,9 +435,9 @@ void PHONON::writeldos()
     
     double wnow = wmin;
     for (int idos=0; idos<ndos; idos++){
-      double ldx = ldos[idos][ilocal][0];
-      double ldy = ldos[idos][ilocal][1];
-      double ldz = ldos[idos][ilocal][2];
+      double ldx = ldos[ilocal][0][idos];
+      double ldy = ldos[ilocal][1][idos];
+      double ldz = ldos[ilocal][2][idos];
       double total = ldx + ldy + ldz;
       fprintf(fp,"%lg %lg %lg %lg %lg\n", wnow, ldx, ldy, ldz, total);
       wnow += dw;
@@ -580,16 +581,16 @@ void PHONON::normalize()
   }
 
   if (ldos){ // to normalize ldos
-    for (int j=0; j<nlocal; j++)
-    for (int k=0; k<3; k++){
+    for (int il=0; il<nlocal; il++)
+    for (int idim=0; idim<3; idim++){
       double odd = 0., even = 0.;
-      for (int i=1; i<ndos-1; i+=2) odd  += ldos[i][j][k];
-      for (int i=2; i<ndos-1; i+=2) even += ldos[i][j][k];
+      for (int i=1; i<ndos-1; i+=2) odd  += ldos[il][idim][i];
+      for (int i=2; i<ndos-1; i+=2) even += ldos[il][idim][i];
 
-      double sum = ldos[0][j][k] + ldos[ndos-1][j][k];
+      double sum = ldos[il][idim][0] + ldos[il][idim][ndos-1];
       sum += 4.*odd+2.*even;
       sum = 3.*rdw/sum;
-      for (int i=0; i<ndos; i++) ldos[i][j][k] *= sum;
+      for (int i=0; i<ndos; i++) ldos[il][idim][i] *= sum;
     }
   }
 return;
@@ -656,10 +657,10 @@ void PHONON::compute_local_therm()
         else fac = double( (i%2+1)*2 );
 
         for (int idim=0; idim<3; idim++){
-          Uvib[idim] += fac * ldos[i][ilocal][idim] * (0.5 + expxm1) * x;
-          Svib[idim] += fac * ldos[i][ilocal][idim] * ( x * expxm1 - log(1.-1./expx));
-          Fvib[idim] += fac * ldos[i][ilocal][idim] * log( 2.*sinh(0.5*x));
-          Cvib[idim] += fac * ldos[i][ilocal][idim] * x * x * expx * expxm1 * expxm1;
+          Uvib[idim] += fac * ldos[ilocal][idim][i] * (0.5 + expxm1) * x;
+          Svib[idim] += fac * ldos[ilocal][idim][i] * ( x * expxm1 - log(1.-1./expx));
+          Fvib[idim] += fac * ldos[ilocal][idim][i] * log( 2.*sinh(0.5*x));
+          Cvib[idim] += fac * ldos[ilocal][idim][i] * x * x * expx * expxm1 * expxm1;
         }
       }
 

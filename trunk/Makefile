@@ -7,8 +7,8 @@ CFLAGS = -O3 $(DEBUG)
 
 #
 OFLAGS = -O3 $(DEBUG)
-INC    = $(FFTINC) $(LPKINC) $(USRINC) $(SPGINC) $(GSLINC) $(OPMINC)
-LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB) $(SYSLIB)
+INC    = $(FFTINC) $(LPKINC) $(USRINC) $(SPGINC) $(GSLINC) $(OMPINC)
+LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OMPLIB) $(SYSLIB)
 
 # icc specific
 #SYSLIB = -lstdc++ -lpthread -lguide
@@ -19,8 +19,8 @@ LIB    = $(FFTLIB) $(LPKLIB) $(USRLIB) $(SPGLIB) $(GSLLIB) $(OPMLIB) $(SYSLIB)
 
 # parallelize part of the code via OpenMP
 # g++
-OPMINC = -fopenmp -DOMP
-OPMLIB = -lgomp -lpthread
+OMPINC = -fopenmp -DOMP
+OMPLIB = -lgomp -lpthread
 # icc
 #OPMINC = -openmp -parallel -fast -DOMP
 #OPMLIB = -openmp -parallel -fast
