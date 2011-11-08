@@ -202,7 +202,7 @@ void DYNMAT::setup()
   printf("\n");for (int i=0; i<60;i++) printf("="); printf("\n");
   printf("System name : %s\n", atom->title);
   printf("System size : %d atoms with %d types\n",natom, atom->ntype);
-  printf("Elements are:");for (int i=0; i<atom->ntype;i++) printf(" %s -> %s",atom->elements[i], eam->elements[map[i]]);
+  printf("Elements are:");for (int i=0; i<atom->ntype;i++) printf(" %s -> %s,",atom->elements[i], eam->elements[map[i]]);
   printf("\nCohesive eng: %lg eV\n", Ec);
   printf("Pairwise eng: %lg eV\n", Ep);
   printf("Total energy: %lg eV ==> %lg eV/atom\n", Et, Et/double(natom));
