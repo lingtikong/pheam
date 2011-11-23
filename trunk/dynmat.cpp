@@ -580,11 +580,11 @@ void DYNMAT::GreenLDOS()
     delete green;
 
 #ifndef OMP
-    printf("Done! CPU time used: %g seconds.\n", timer->sincelast());
+    printf("Done! Wall time used: %g/%g seconds.\n", timer->sincelast(), timer->up2now());
 #else
     int me = omp_get_thread_num();
     timer_in->stop();
-    printf("PLDOS of atom %d computed by %d! CPU time used: %g seconds.\n", iatom, me, timer_in->cpu_time() );
+    printf("PLDOS of atom %d computed by %d! Wall time used: %g seconds.\n", iatom, me, timer_in->wall_time() );
     delete timer_in;
 #endif
     fflush(stdout);
