@@ -9,8 +9,8 @@ return;
 
 void Timer::start()
 {
- t0 = clock(); t1 = t0;
- time(&tbeg);
+ t0 = clock();
+ time(&tbeg); tprev = tnow = tbeg;
 
  flag |= 1;
 
@@ -20,8 +20,8 @@ return;
 void Timer::stop()
 {
   if ( flag&1 ) {
-    t2 = clock(); t1 = t2;
-    time(&tend);
+    t2 = clock();
+    time(&tnow); tprev = tnow;
 
     flag |= 2;
   }
@@ -33,7 +33,7 @@ void Timer::print()
   if ( (flag&3) != 3) return;
 
   cpu_time_used = ((double) (t2 - t0)) / CLOCKS_PER_SEC;
-  printf("Total CPU time used: %g seconds; walltime: %g seconds.\n", cpu_time_used, difftime(tend,tbeg));
+  printf("Total CPU time used: %g seconds; walltime: %g seconds.\n", cpu_time_used, difftime(tnow,tbeg));
 
 return;
 }
@@ -47,15 +47,15 @@ double Timer::cpu_time()
 double Timer::wall_time()
 {
   if ( (flag&3) != 3) return 0.;
-  else return difftime(tend,tbeg);
+  else return difftime(tnow,tbeg);
 }
 
 double Timer::up2now()
 {
   if ( (flag&1) != 1) return 0.;
   else {
-    t2 = clock(); t1 = t2;
-    return ((double) (t2 - t0)) / CLOCKS_PER_SEC;
+    time(&tnow);
+    return difftime(tnow, tbeg);
   }
 }
 
@@ -63,8 +63,8 @@ double Timer::sincelast()
 {
   if ( (flag&1) != 1) return 0.;
   else {
-    t2 = clock();
-    return ((double) (t2 - t1)) / CLOCKS_PER_SEC;
-    t1 = t2;
+    time(&tnow);
+    return difftime(tnow, tprev);
+    tprev = tnow;
   }
 }
