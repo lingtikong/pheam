@@ -35,7 +35,6 @@ public:
 
   CELL *atom;
   EAM  *eam;
-  Green *green;
   Memory *memory;
 
   int natom, ndim;

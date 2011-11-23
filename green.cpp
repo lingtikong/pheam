@@ -9,9 +9,10 @@
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
+/*
 #ifdef OMP
 #include "omp.h"
-#endif
+#endif */
 /*******************************************************************************
  * The class of Green is designed to evaluate the LDOS via the Green's Function
  * method. The meaning of input/output parameters are as follows:
@@ -66,9 +67,10 @@ Green::Green(int ntm, int sdim, int niter, double min, double max, int ndos, dou
   beta  = memory->create(beta,sysdim,nit+1,"Green_Green:beta");
   ldos  = memory->create(ldos,sysdim,nw, "Green_Green:ldos");
 
+/*
 #ifdef OMP
   npmax = omp_get_max_threads();
-#endif
+#endif */
   // use Lanczos algorithm to diagonalize the Hessian
   Lanczos();
   // Get the inverser of the treated hessian by continued fractional method
@@ -107,7 +109,7 @@ void Green::Lanczos()
   int ipos = (iatom-1)*sysdim;
 
   // Loop over dimension
-  #pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
+  //#pragma omp parallel for default(shared) schedule(dynamic,1) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
 
     double v0[ndim], v1[ndim], w0[ndim];
@@ -161,7 +163,7 @@ void Green::Recursion()
   xmax  = memory->create(xmax, sysdim, "Recursion:xmax");
 
   int nave = nit/4;
-  #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
+  //#pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
     alpha_inf[idim] = beta_inf[idim] = 0.;
 
@@ -177,7 +179,7 @@ void Green::Recursion()
     xmax[idim] = alpha_inf[idim] + 2.*beta_inf[idim];
   }
 
-  #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
+  // #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
   for (int i=0; i<nw; i++){
     double w = wmin + double(i)*dw;
     double a = w*w;
@@ -230,7 +232,7 @@ return;
  *----------------------------------------------------------------------------*/
 void Green::recursion()
 {
-  #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
+  // #pragma omp parallel for default(shared) schedule(guided) num_threads(npmax)
   for (int i=0; i<nw; i++){
     double w = wmin + double(i)*dw;
     std::complex<double> Z = std::complex<double>(w*w, epson);
@@ -256,7 +258,7 @@ void Green::Normalize()
   // normalize ldos
   double df = dw /(8.*atan(1.));
 
-  #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
+  // #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))
   for (int idim=0; idim<sysdim; idim++){
     double odd = 0., even = 0.;
     for (int i=1; i<nw-1; i += 2) odd  += ldos[idim][i];

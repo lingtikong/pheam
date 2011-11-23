@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "timer.h"
+#include "green.h"
 
 #include "dynmat.h"
 #ifdef OMP
@@ -562,20 +563,34 @@ void DYNMAT::GreenLDOS()
   }
 
   Timer *timer = new Timer();
-  double cputime = 0., walltime = 0.;
+#ifdef OMP
+  int npmax = omp_get_max_threads();
+#endif
+  #pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(nlocal,npmax))
   for (int ilocal = 0; ilocal<nlocal; ilocal++){
-    timer->start();
     int iatom = locals[ilocal];
+#ifndef OMP
     printf("Now to compute PLDOS for atom %d... ", iatom);
+#else
+    Timer *timer_in = new Timer();
+#endif
+
     // now to compute the LDOS by using class Green
-    green = new Green(natom, sysdim, nt, wmin, wmax, ndos, eps, hessian, iatom);
+    Green *green = new Green(natom, sysdim, nt, wmin, wmax, ndos, eps, hessian, iatom);
     delete green;
 
-    timer->stop();
-    printf("Done! CPU time used: %g seconds; wall time: %g seconds.\n", timer->cpu_time(), timer->wall_time());
-    cputime += timer->cpu_time(); walltime += timer->wall_time();
+#ifndef OMP
+    printf("Done! CPU time used: %g seconds.\n", timer->sincelast());
+#else
+    int me = omp_get_thread_num();
+    timer_in->stop();
+    printf("PLDOS of atom %d computed by %d! CPU time used: %g seconds.\n", iatom, me, timer_in->cpu_time() );
+    delete timer_in;
+#endif
+    fflush(stdout);
   }
-  if (nlocal > 1) printf("Total CPU time used: %g seconds; wall time: %g seconds.\n", cputime, walltime);
+  timer->stop();
+  printf("Total CPU time used: %g seconds; wall time: %g seconds.\n", timer->cpu_time(), timer->wall_time());
   delete timer;
 
   hessian = NULL;
