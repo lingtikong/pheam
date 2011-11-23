@@ -18,9 +18,10 @@ private:
   int ndos;
   double **ldos;
 
+/*
 #ifdef OMP
   int npmax;
-#endif
+#endif */
 
   int natom, iatom, sysdim, nit, nw, ndim;
   double dw, wmin, wmax, epson;

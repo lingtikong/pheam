@@ -14,9 +14,11 @@ public:
   void print();
   double cpu_time();
   double wall_time();
+  double up2now();
+  double sincelast();
 
 private:
-  clock_t t1, t2;
+  clock_t t0, t1, t2;
   double cpu_time_used;
 
   time_t tbeg, tend;
