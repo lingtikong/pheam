@@ -30,16 +30,16 @@ OMPLIB = -lgomp -lpthread
 #LPKINC = -I/opt/clapack/3.2.1/include
 #LPKLIB = -L/opt/clapack/3.2.1/lib -lclapack -lblas -lf2c -lm
 # MKL Lapack
-LPKINC = -I/opt/intel/cmkl/10.2.5.035/include -DMKL
-LPKLIB = -L/opt/intel/cmkl/10.2.5.035/lib/em64t -lmkl_lapack95_lp64 -lmkl_intel_lp64 -Wl,--start-group -lmkl_intel_thread  -lmkl_core -Wl,--end-group -liomp5 -lpthread
+LPKINC = -I/opt/intel/mkl/include -DMKL
+LPKLIB = -L/opt/intel/mkl/lib/intel64 -L/opt/intel/lib/intel64 -lmkl_lapack95_lp64 -lmkl_intel_lp64 -Wl,--start-group -lmkl_intel_thread  -lmkl_core -Wl,--end-group -liomp5 -lpthread
 
 # spglib, used to get the irreducible q-points
-SPGINC = -I/opt/spglib/0.7.1/include
-SPGLIB = -L/opt/spglib/0.7.1/lib -lsymspg
+SPGINC = -I/opt/libs/spglib/0.7.1/include
+SPGLIB = -L/opt/libs/spglib/0.7.1/lib -lsymspg
 
 # gsllib, used to get the spline interpolation
-GSLINC = -I/opt/gsl/include
-GSLLIB = -L/opt/gsl/lib -lgslcblas -lgsl
+GSLINC = -I/opt/libs/gsl/include
+GSLLIB = -L/opt/libs/gsl/lib -lgslcblas -lgsl
 
 # Debug flags
 #DEBUG = -g -DDEBUG
