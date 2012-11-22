@@ -129,12 +129,13 @@ void DYNMAT::setup()
 #endif
   #pragma omp parallel for default(shared) schedule(guided)
   for (int i=0; i< natom; i++) den[i] = 0.;
+
   #pragma omp parallel for default(shared) schedule(guided)
   for (int i=0; i< natom; i++) NumNei[i] = 0;
 
   for (int k=0; k < natom; k++){
     int ik = map[atom->type[k]];
-    #pragma omp parallel for default(shared) schedule(guided)
+    #pragma omp parallel for default(shared) schedule(guided) reduction(+:Ep)
     for (int kp=k; kp < natom; kp++){
       int ikp = map[atom->type[kp]];
       for (int kx = -Lx; kx <= Lx; kx++)
@@ -154,10 +155,8 @@ void DYNMAT::setup()
         den[k] += eam->Rho(r, ikp, ik);
         if (k != kp){
           den[kp] += eam->Rho(r, ik, ikp);
-          #pragma omp atomic
           Ep += eam->Phi(r, ik, ikp);
         } else {
-          #pragma omp atomic
           Ep += 0.5*eam->Phi(r, ikp, ik);
         }
 
@@ -189,10 +188,9 @@ void DYNMAT::setup()
     }
   }
   // get the embedded energy and its derivatives
-#pragma omp parallel for default(shared) schedule(guided)
+#pragma omp parallel for default(shared) schedule(guided) reduction(+:Ec)
   for (int i=0; i<natom; i++){
     int ip  = map[atom->type[i]];
-    #pragma omp atomic
     Ec += eam->F(den[i], ip);
 
     Fp[i]  = eam->Fp(den[i], ip);

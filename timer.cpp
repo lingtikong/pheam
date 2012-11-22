@@ -64,7 +64,8 @@ double Timer::sincelast()
   if ( (flag&1) != 1) return 0.;
   else {
     time(&tnow);
-    return difftime(tnow, tprev);
+    double tinv = difftime(tnow, tprev);
     tprev = tnow;
+    return tinv;
   }
 }
