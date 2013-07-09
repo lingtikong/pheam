@@ -64,9 +64,9 @@ Green::Green(const int ntm, const int sdim, const int niter, const double min, c
 
   // initialize variables and allocate local memories
   dw    = (wmax - wmin)/double(nw-1);
-  alpha = memory->create(alpha,sysdim,nit,  "Green_Green:alpha");
-  beta  = memory->create(beta,sysdim,nit+1,"Green_Green:beta");
-  ldos  = memory->create(ldos,sysdim,nw, "Green_Green:ldos");
+  memory->create(alpha,sysdim,nit,  "Green_Green:alpha");
+  memory->create(beta,sysdim,nit+1,"Green_Green:beta");
+  memory->create(ldos,sysdim,nw, "Green_Green:ldos");
 
 /*
 #ifdef OMP
@@ -158,10 +158,10 @@ void Green::Recursion()
 {
   // local variables
   double *alpha_inf, *beta_inf, *xmin, *xmax;
-  alpha_inf = memory->create(alpha_inf, sysdim, "Recursion:alpha_inf");
-  beta_inf  = memory->create(beta_inf,  sysdim, "Recursion:beta_inf");
-  xmin  = memory->create(xmin, sysdim, "Recursion:xmin");
-  xmax  = memory->create(xmax, sysdim, "Recursion:xmax");
+  memory->create(alpha_inf, sysdim, "Recursion:alpha_inf");
+  memory->create(beta_inf,  sysdim, "Recursion:beta_inf");
+  memory->create(xmin, sysdim, "Recursion:xmin");
+  memory->create(xmax, sysdim, "Recursion:xmax");
 
   int nave = nit/4;
   //#pragma omp parallel for default(shared) schedule(guided) num_threads(MIN(sysdim,npmax))

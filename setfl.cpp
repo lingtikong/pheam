@@ -50,7 +50,7 @@ SETFL::SETFL()
   char *first = strtok(line," \t\n\r\f");
   while (words[nwords++] = strtok(NULL," \t\n\r\f")) continue;
 
-  elements = memory->create(elements,ntype, 10, "Setfl_Setfl:elements");
+  memory->create(elements,ntype, 10, "Setfl_Setfl:elements");
   for (int i=0; i<ntype; i++){
     strcpy(elements[i],words[i]);
   }
@@ -63,10 +63,10 @@ SETFL::SETFL()
   dr   = atof(strtok(NULL," \t\n\r\f"));
   rcut = atof(strtok(NULL," \t\n\r\f"));
 
-  mass = memory->create(mass, ntype, "SETFL:mass");
-  embed = memory->create(embed,ntype, Nrho, "Setfl_Setfl:embed");
-  den   = memory->create(den,ntype, Nr, "Setfl_Setfl:den");
-  pair  = memory->create(pair,ntype, ntype, Nr, "Setfl_Setfl:pair");
+  memory->create(mass, ntype, "SETFL:mass");
+  memory->create(embed,ntype, Nrho, "Setfl_Setfl:embed");
+  memory->create(den,ntype, Nr, "Setfl_Setfl:den");
+  memory->create(pair,ntype, ntype, Nr, "Setfl_Setfl:pair");
 
   for (int i = 0; i < ntype; i++) {
     fgets(line,MAXLINE,fp);
@@ -95,8 +95,8 @@ SETFL::SETFL()
   rdrho = 1./drho;
   rcutsq = rcut*rcut;
 
-  RHO0 = memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
-  R0   = memory->create(R0, Nr, "Setfl_Setfl:R0");
+  memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
+  memory->create(R0, Nr, "Setfl_Setfl:R0");
   for (int i=0; i<Nrho; i++) RHO0[i] = double(i)*drho;
   for (int i=0; i<Nr; i++) R0[i] = double(i)*dr;
 

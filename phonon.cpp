@@ -55,7 +55,7 @@ PHONON::PHONON()
       q  = kpoints->q;
       w  = kpoints->w;
       qr = kpoints->qr;
-      eig  = dynmat->memory->create(eig,nq, ndim, "PHONON_PHONON:eig");
+      dynmat->memory->create(eig,nq, ndim, "PHONON_PHONON:eig");
   
       if (job <= 4) ComputeAll();
 
@@ -123,7 +123,7 @@ void PHONON::pldos(int flag)
   if ( strcmp(ptr, "=") == 0 ){
      int nmax = nword-1;
      if (nmax > 0){
-       locals = dynmat->memory->create(locals, nmax, "pldos:locals");
+       dynmat->memory->create(locals, nmax, "pldos:locals");
        strcpy(id4ldos, ptr);
 
        ptr = strtok(NULL, " \t\n\r\f");
@@ -148,7 +148,7 @@ void PHONON::pldos(int flag)
      nlocal = dynmat->natom - nlow;
      if (nlocal < 1 || nlow < 0) return;
 
-     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = nlow + i;
      sprintf(id4ldos, "> %d", nlow);
 
@@ -157,7 +157,7 @@ void PHONON::pldos(int flag)
      nlocal = dynmat->natom - nlow +1;
      if (nlocal < 1 || nlow < 1) return;
 
-     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = nlow + i -1;
      sprintf(id4ldos, ">= %d", nlow);
 
@@ -165,7 +165,7 @@ void PHONON::pldos(int flag)
      nlocal = atoi(strtok(NULL, " \t\n\r\f")) - 1;
      if (nlocal > dynmat->natom || nlocal < 1) return;
 
-     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = i;
 
      sprintf(id4ldos, "< %d", nlocal+1);
@@ -174,7 +174,7 @@ void PHONON::pldos(int flag)
      nlocal = atoi(strtok(NULL, " \t\n\r\f"));
      if (nlocal > dynmat->natom || nlocal < 1) return;
 
-     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<nlocal; i++) locals[i] = i;
 
      sprintf(id4ldos, "<= %d", nlocal);
@@ -196,7 +196,7 @@ void PHONON::pldos(int flag)
      if (nlo<0 || nhi >= dynmat->natom || nhi < nlo) return;
 
      nlocal = nlo+1 + dynmat->natom - nhi;
-     locals = dynmat->memory->create(locals, nlocal, "pldos:locals");
+     dynmat->memory->create(locals, nlocal, "pldos:locals");
      for (int i=0; i<=nlo; i++) locals[i] = i;
      for (int i=nlo+1; i<nlocal; i++) locals[i] = nhi + i-(nlo+1);
 
@@ -232,8 +232,8 @@ void PHONON::pldos(int flag)
   dw = (wmax-wmin)/double(ndos-1);
   rdw = 1./dw;
 
-  ldos = dynmat->memory->create(ldos,nlocal,3,ndos,"phonon_pldos:ldos");
-  dos  = dynmat->memory->create(dos,ndos,"phonon_pldos:dos");
+  dynmat->memory->create(ldos,nlocal,3,ndos,"phonon_pldos:ldos");
+  dynmat->memory->create(dos,ndos,"phonon_pldos:dos");
 
   for (int i=0; i<ndos; i++) dos[i] = 0.;
 
@@ -354,7 +354,7 @@ void PHONON::pdos()
   if (ndos < 2) return;
   ndos += (ndos+1)%2;
 
-  dos = dynmat->memory->create(dos,ndos,"pdos:dos");
+  dynmat->memory->create(dos,ndos,"pdos:dos");
   for (int i=0; i<ndos; i++) dos[i] = 0.;
 
   dw = (wmax-wmin)/double(ndos-1);

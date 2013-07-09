@@ -22,8 +22,8 @@ FUNCFL::FUNCFL()
   int nwords = 0;
   words[0] = strtok(potfiles," \t\n\r\f");
   while (words[++nwords] = strtok(NULL," \t\n\r\f")) continue;
-  mass = memory->create(mass,nfile, "FUNCFL:mass");
-  elements = memory->create(elements,nfile, 10, "Funcfl_Funcfl:elements");
+  memory->create(mass,nfile, "FUNCFL:mass");
+  memory->create(elements,nfile, 10, "Funcfl_Funcfl:elements");
 
   ntype = 0;
   for (int ii = 0; ii<nfile; ii++){
@@ -55,9 +55,9 @@ FUNCFL::FUNCFL()
 
     if (ntype ==0){
       Nrho = Nrhop; drho = drhop; Nr = Nrp; dr = drp; rcut = rcutp;
-      embed = memory->create(embed,nfile, Nrho, "Funcfl_Funcfl:embed");
-      den   = memory->create(den,nfile, Nr, "Funcfl_Funcfl:den");
-      pair  = memory->create(pair,nfile, Nr, "Funcfl_Funcfl:pair");
+      memory->create(embed,nfile, Nrho, "Funcfl_Funcfl:embed");
+      memory->create(den,nfile, Nr, "Funcfl_Funcfl:den");
+      memory->create(pair,nfile, Nr, "Funcfl_Funcfl:pair");
     } else {
       if (Nrho != Nrhop || Nr != Nrp || abs(drhop-drho)>1.e-9 || abs(drp-dr) > 1.e-9 || abs(rcutp-rcut)>1.e-5){
         printf("\nError: Header info read from %s is different from previous ones! Current potential ignored.\n", fname);
@@ -77,8 +77,8 @@ FUNCFL::FUNCFL()
   }
   delete [] words;
 
-  RHO0 = memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
-  R0   = memory->create(R0, Nr, "Setfl_Setfl:R0");
+  memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
+  memory->create(R0, Nr, "Setfl_Setfl:R0");
 
   for (int i=0; i<Nrho; i++) RHO0[i] = double(i)*drho;
   for (int i=0; i<Nr; i++) R0[i] = double(i)*dr;

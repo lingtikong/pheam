@@ -15,7 +15,7 @@ CELL::CELL()
 {
   // create memory and elements array
   memory = new Memory();
-  elements = memory->create(elements,10,10,"CELL_CELL:elements");
+  memory->create(elements,10,10,"CELL_CELL:elements");
 
   // ask for file name
   char str[MAXLINE], *ptr;
@@ -45,11 +45,11 @@ CELL::CELL()
     printf("\nError: wrong number of atoms (%d) read from file: %s\n", natom, fname);
     exit(2);
   }
-  x = memory->create(x,natom,3,"CELL_CELL:x");
-  s = memory->create(s,natom,3,"CELL_CELL:s");
-  axis    = memory->create(axis,3,3,"CELL_CELL:axis");
-  invaxis = memory->create(invaxis,3,3,"CELL_CELL:invaxis");
-  type = memory->create(type, natom,"CELL_CELL:type");
+  memory->create(x,natom,3,"CELL_CELL:x");
+  memory->create(s,natom,3,"CELL_CELL:s");
+  memory->create(axis,3,3,"CELL_CELL:axis");
+  memory->create(invaxis,3,3,"CELL_CELL:invaxis");
+  memory->create(type, natom,"CELL_CELL:type");
 
   char *name, *sdum;
   int flag[3];
@@ -266,7 +266,8 @@ return;
 int CELL::count_words(const char *line)
 {
   int n = strlen(line) + 1;
-  char *copy = memory->create(copy, n,"copy");
+  char *copy;
+  memory->create(copy, n,"copy");
   strcpy(copy,line);
 
   char *ptr;
