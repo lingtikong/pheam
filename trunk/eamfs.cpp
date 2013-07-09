@@ -51,7 +51,7 @@ EAMFS::EAMFS()
   char *first = strtok(line," \t\n\r\f");
   while (words[nwords++] = strtok(NULL," \t\n\r\f")) continue;
 
-  elements = memory->create(elements,ntype, 10, "EAMFS_EAMFS:elements");
+  memory->create(elements,ntype, 10, "EAMFS_EAMFS:elements");
   for (int i=0; i<ntype; i++){
     strcpy(elements[i],words[i]);
   }
@@ -64,10 +64,10 @@ EAMFS::EAMFS()
   dr   = atof(strtok(NULL," \t\n\r\f"));
   rcut = atof(strtok(NULL," \t\n\r\f"));
 
-  mass = memory->create(mass, ntype, "EAMFS_EAMFS:mass");
-  embed = memory->create(embed,ntype, Nrho, "EAMFS_EAMFS:embed");
-  den   = memory->create(den, ntype, ntype, Nr, "EAMFS_EAMFS:den");
-  pair  = memory->create(pair,ntype, ntype, Nr, "EAMFS_EAMFS:pair");
+  memory->create(mass, ntype, "EAMFS_EAMFS:mass");
+  memory->create(embed,ntype, Nrho, "EAMFS_EAMFS:embed");
+  memory->create(den, ntype, ntype, Nr, "EAMFS_EAMFS:den");
+  memory->create(pair,ntype, ntype, Nr, "EAMFS_EAMFS:pair");
 
   for (int i = 0; i < ntype; i++) {
     fgets(line,MAXLINE,fp);
@@ -97,8 +97,8 @@ EAMFS::EAMFS()
   rdrho = 1./drho;
   rcutsq = rcut*rcut;
 
-  RHO0 = memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
-  R0   = memory->create(R0, Nr, "Setfl_Setfl:R0");
+  memory->create(RHO0, Nrho, "Setfl_Setfl:RHO0");
+  memory->create(R0, Nr, "Setfl_Setfl:R0");
   for (int i=0; i<Nrho; i++) RHO0[i] = double(i)*drho;
   for (int i=0; i<Nr; i++) R0[i] = double(i)*dr;
 

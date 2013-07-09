@@ -26,7 +26,7 @@ DYNMAT::DYNMAT()
   selectEAM();
 
   // get the mapping between atomic types from "atom" and those from "EAM"
-  map = memory->create(map,atom->ntype,"DYNMAT:map");
+  memory->create(map,atom->ntype,"DYNMAT:map");
   checkmap();
 
   // allocate variables
@@ -34,13 +34,13 @@ DYNMAT::DYNMAT()
   ndim = natom*3;
   neimax = 40;
 
-  den = memory->create(den, natom, "DYNMAT:den");
-  Fp  = memory->create(Fp , natom, "DYNMAT:Fp");
-  Fpp = memory->create(Fpp, natom, "DYNMAT:Fpp");
-  NumNei = memory->create(NumNei, natom, "DYNMAT:NumNei");
+  memory->create(den, natom, "DYNMAT:den");
+  memory->create(Fp , natom, "DYNMAT:Fp");
+  memory->create(Fpp, natom, "DYNMAT:Fpp");
+  memory->create(NumNei, natom, "DYNMAT:NumNei");
 
-  NeiList = memory->create(NeiList,neimax, natom,"DYNMAT_DYNMAT:NeiList");
-  Bonds   = memory->create(Bonds,neimax,natom,4,"DYNMAT_DYNMAT:Bonds");
+  memory->create(NeiList,neimax, natom,"DYNMAT_DYNMAT:NeiList");
+  memory->create(Bonds,neimax,natom,4,"DYNMAT_DYNMAT:Bonds");
 
   // ask for the extension of lattice in three dimensions
   // assuming orthogonal lattice
@@ -63,8 +63,8 @@ DYNMAT::DYNMAT()
   setup();
 
   // allocate memory for dynamical matrix and its eigen values/vectors
-  egval   = memory->create(egval,ndim,"DYNMAT_DYNMAT:egval");
-  dm      = memory->create(dm,ndim, ndim,"DYNMAT_DYNMAT:dm");
+  memory->create(egval,ndim,"DYNMAT_DYNMAT:egval");
+  memory->create(dm,ndim, ndim,"DYNMAT_DYNMAT:dm");
 
 return;
 }
@@ -135,7 +135,8 @@ void DYNMAT::setup()
 
   for (int k=0; k < natom; k++){
     int ik = map[atom->type[k]];
-    #pragma omp parallel for default(shared) schedule(guided) reduction(+:Ep)
+    double Epk = 0.;
+    #pragma omp parallel for default(shared) schedule(guided) reduction(+:Epk)
     for (int kp=k; kp < natom; kp++){
       int ikp = map[atom->type[kp]];
       for (int kx = -Lx; kx <= Lx; kx++)
@@ -155,17 +156,17 @@ void DYNMAT::setup()
         den[k] += eam->Rho(r, ikp, ik);
         if (k != kp){
           den[kp] += eam->Rho(r, ik, ikp);
-          Ep += eam->Phi(r, ik, ikp);
+          Epk += eam->Phi(r, ik, ikp);
         } else {
-          Ep += 0.5*eam->Phi(r, ikp, ik);
+          Epk += 0.5*eam->Phi(r, ikp, ik);
         }
 
         #pragma omp critical
         { // only one thread is allowed to modify this region at the same time
           if (++NumNei[k] > neimax){
             neimax += 12;
-            NeiList = memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
-            Bonds   = memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
+            memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
+            memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
           }
   
           int nnow = NumNei[k] -1;
@@ -176,8 +177,8 @@ void DYNMAT::setup()
         if (k != kp){
           if ( ++NumNei[kp]> neimax){
             neimax += 12;
-            NeiList = memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
-            Bonds   = memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
+            memory->grow(NeiList,neimax,natom,"DYNMAT_setup:NeiList");
+            memory->grow(Bonds,neimax,natom,4,"DYNMAT_setup:Bonds");
           }
           int nnow = NumNei[kp] -1;
           NeiList[nnow][kp] = k;
@@ -186,16 +187,19 @@ void DYNMAT::setup()
         }
       }
     }
+    Ep += Epk;
   }
   // get the embedded energy and its derivatives
-#pragma omp parallel for default(shared) schedule(guided) reduction(+:Ec)
+  double Eci = 0.;
+#pragma omp parallel for default(shared) schedule(guided) reduction(+:Eci)
   for (int i=0; i<natom; i++){
     int ip  = map[atom->type[i]];
-    Ec += eam->F(den[i], ip);
+    Eci += eam->F(den[i], ip);
 
     Fp[i]  = eam->Fp(den[i], ip);
     Fpp[i] = eam->Fpp(den[i], ip);
   }
+  Ec = Eci;
   Et = Ec + Ep;
   // display lattice energy
   printf("\n");for (int i=0; i<60;i++) printf("="); printf("\n");
@@ -298,9 +302,9 @@ int DYNMAT::computeEigen(int flag)
   lda    = n;
   lrwork = 1 + (5+n+n)*n;
   liwork = 3 + 5*n;
-  work  = memory->create(work,  lwork,"computeEigen:work");
-  rwork = memory->create(rwork, lrwork,"computeEigen:rwork");
-  iwork = memory->create(iwork, liwork,"computeEigen:iwork");
+  memory->create(work,  lwork,"computeEigen:work");
+  memory->create(rwork, lrwork,"computeEigen:rwork");
+  memory->create(iwork, liwork,"computeEigen:iwork");
 
 #ifdef OMP
 #ifdef MKL
@@ -401,7 +405,7 @@ void DYNMAT::GreenLDOS()
   if (strcmp(ptr, "=") == 0){
     strcpy(id4ldos, "=");
     if (nwd > 1){
-      locals = memory->create(locals, nwd-1, "GreenLDOS:locals");
+      memory->create(locals, nwd-1, "GreenLDOS:locals");
 
       ptr = strtok(NULL," \t\n\r\f");
       while (ptr){
@@ -426,7 +430,7 @@ void DYNMAT::GreenLDOS()
       nlocal = natom-nlo;
 
       if (nlocal > 0 && nlocal <= natom){
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
         for (int i=0; i<nlocal; i++) locals[i] = i+nlo+1;
 
         sprintf(id4ldos,"> %d", nlo);
@@ -437,7 +441,7 @@ void DYNMAT::GreenLDOS()
       int nlo = atoi(strtok(NULL," \t\n\r\f"));
       nlocal = natom-nlo+1;
       if (nlocal > 0 && nlocal <= natom){
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
         for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
 
         sprintf(id4ldos,">= %d", nlo);
@@ -448,7 +452,7 @@ void DYNMAT::GreenLDOS()
       int nhi = atoi(strtok(NULL," \t\n\r\f"));
       nlocal = nhi-1;
       if (nlocal > 0 && nlocal <= natom){
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
         for (int i=0; i<nlocal; i++) locals[i] = i;
 
         sprintf(id4ldos,"< %d", nhi);
@@ -459,7 +463,7 @@ void DYNMAT::GreenLDOS()
       int nhi = atoi(strtok(NULL," \t\n\r\f"));
       nlocal = nhi;
       if (nlocal > 0 && nlocal <= natom){
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
         for (int i=0; i<nlocal; i++) locals[i] = i;
 
         sprintf(id4ldos,"<= %d", nhi);
@@ -472,7 +476,7 @@ void DYNMAT::GreenLDOS()
 
       if (nlo > 0 && nhi <= natom && nhi >= nlo){
         nlocal = nhi - nlo + 1;
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
 
         for (int i=0; i<nlocal; i++) locals[i] = i+nlo;
 
@@ -486,7 +490,7 @@ void DYNMAT::GreenLDOS()
 
       if (nlo > 0 && nhi <= natom && nhi >= nlo){
         nlocal = nlo + natom - nhi + 1;
-        locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+        memory->create(locals, nlocal, "GreenLDOS:locals");
 
         for (int i=0;     i<= nlo;  i++) locals[i] = i;
         for (int i=nlo+1; i<nlocal; i++) locals[i] = i-nlo-1+nhi;
@@ -497,7 +501,7 @@ void DYNMAT::GreenLDOS()
   } else {
     nlocal = nwd;
     if (nlocal > 0){
-      locals = memory->create(locals, nlocal, "GreenLDOS:locals");
+      memory->create(locals, nlocal, "GreenLDOS:locals");
       nlocal = 0;
 
       strcpy(id4ldos, "=");

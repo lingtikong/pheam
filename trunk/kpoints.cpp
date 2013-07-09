@@ -24,8 +24,8 @@ KPOINTS::KPOINTS(int type, CELL *cellin)
 
   if (type == 1){ // gamma point only
     nq   = 1;
-    q = memory->create(q,nq, 3, "KPOINTS_KPOINTS:q");
-    w = memory->create(w,nq,"KPOINTS_KPOINTS:w");
+    memory->create(q,nq, 3, "KPOINTS_KPOINTS:q");
+    memory->create(w,nq,"KPOINTS_KPOINTS:w");
     q[0][0] = q[0][1] = q[0][2] = 0.;
     w[0] = 1.;
 
@@ -86,8 +86,8 @@ void KPOINTS::get_line_q()
     fgets(str,MAXLINE,stdin);
     char *ptr = strtok(str, " \t\n\r\f"); if (ptr) nline = atoi(ptr);
   }
-  qstr = memory->create(qstr,nline, 3, "KPOINTS_interpolate:qstr");
-  qend = memory->create(qend,nline, 3, "KPOINTS_interpolate:qend");
+  memory->create(qstr,nline, 3, "KPOINTS_interpolate:qstr");
+  memory->create(qend,nline, 3, "KPOINTS_interpolate:qend");
   npt  = new int[nline];
 
   int npp = 10;
@@ -114,9 +114,9 @@ void KPOINTS::get_line_q()
   }
   nq = 0;
   for (int i=0; i<nline; i++) nq += npt[i];
-  q  = memory->create(q, nq, 3, "KPOINTS_interpolate:q");
-  w  = memory->create(w, nq, "KPOINTS_interpolate:w");
-  qr = memory->create(qr,nq, "KPOINTS_interpolate:qr");
+  memory->create(q, nq, 3, "KPOINTS_interpolate:q");
+  memory->create(w, nq, "KPOINTS_interpolate:w");
+  memory->create(qr,nq, "KPOINTS_interpolate:qr");
   
   // now to get the q-points
   double dq[3], r = 0., dr;
@@ -201,9 +201,10 @@ void KPOINTS::get_ir_q(const int npt, const int *nx, const int natom, CELL *cell
                                lattice, position, types,
                                num_atom, symprec);
 
-  q = memory->create(q,nq,3,"q");
-  w = memory->create(w,nq,"w");
-  int *iq2idx = memory->create(iq2idx, num_grid, "get_ir_q:iq2idx");
+  memory->create(q,nq,3,"q");
+  memory->create(w,nq,"w");
+  int *iq2idx;
+  memory->create(iq2idx, num_grid, "get_ir_q:iq2idx");
   int numq = 0;
   for (int i=0; i<num_grid; i++){
     int iq = map[i];
