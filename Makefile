@@ -62,7 +62,7 @@ clean:
 	rm -f *.o *~ *.mod
 
 tar:
-	rm -f ${ROOT}.tar; tar -czvf ${ROOT}.tar.gz *.cpp  *.h Makefile README
+	rm -f ${ROOT}.tar; tar -czvf ${ROOT}.tar.gz *.cpp  *.h Makefile README example
 
 .f.o:
 	$(FC) $(FFLAGS) $(FREE) $(MPI) ${INC} -c $<

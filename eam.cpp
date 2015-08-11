@@ -47,7 +47,8 @@ int EAM::index(const char *name)
 int EAM::count_words(const char *line)
 {
   int n = strlen(line) + 1;
-  char *copy = memory->create(copy,n,"copy");
+  char *copy;
+  memory->create(copy,n,"copy");
   strcpy(copy,line);
 
   char *ptr;
